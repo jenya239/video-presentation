@@ -218,8 +218,8 @@
             <span class="stat-value">9</span>
         </div>
         <div class="stat-row">
-            <span class="stat-label">Moons:</span>
-            <span class="stat-value">12</span>
+            <span class="stat-label">Real Comets:</span>
+            <span class="stat-value">2</span>
         </div>
     </div>
 
@@ -322,19 +322,6 @@
                 });
                 const starMesh = new THREE.Mesh(starGeometry, starMaterial);
                 starMesh.position.set(x, y, z);
-                
-                // Добавляем свечение для самых ярких звёзд
-                if (star.magnitude < 0.5) {
-                    const glowGeometry = new THREE.SphereGeometry(size * 5, 8, 8);
-                    const glowMaterial = new THREE.MeshBasicMaterial({
-                        color: star.color,
-                        transparent: true,
-                        opacity: 0.7,
-                        side: THREE.BackSide
-                    });
-                    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-                    starMesh.add(glow);
-                }
                 
                 starGroup.add(starMesh);
             });
