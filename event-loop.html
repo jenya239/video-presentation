@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript Event Loop Explained</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            background: #0a0e27;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+        }
+
+        #webgl-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .title {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 52px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 20px #00ffff, 2px 2px 0 #ff00ff;
+            letter-spacing: 6px;
+            z-index: 10;
+        }
+
+        .subtitle {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            color: #00ffff;
+            z-index: 10;
+            letter-spacing: 2px;
+        }
+
+        .component-label {
+            position: absolute;
+            background: rgba(0, 20, 40, 0.95);
+            border: 2px solid;
+            padding: 15px 25px;
+            border-radius: 8px;
+            z-index: 10;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 0 20px;
+            transition: all 0.3s ease;
+        }
+
+        .label-callstack {
+            top: 150px;
+            left: 50px;
+            border-color: #ff00ff;
+            color: #ff00ff;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.3);
+        }
+
+        .label-webapis {
+            top: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-color: #00ffff;
+            color: #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .label-queue {
+            top: 150px;
+            right: 50px;
+            border-color: #ffff00;
+            color: #ffff00;
+            box-shadow: 0 0 20px rgba(255, 255, 0, 0.3);
+        }
+
+        .label-eventloop {
+            bottom: 180px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-color: #00ff00;
+            color: #00ff00;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+
+        .code-explanation {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 20, 40, 0.95);
+            border: 2px solid #00ffff;
+            padding: 20px 40px;
+            border-radius: 10px;
+            z-index: 10;
+            min-width: 700px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+        }
+
+        .code-step {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .code-line {
+            font-size: 18px;
+            color: #00ffff;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 8px;
+        }
+
+        .code-desc {
+            font-size: 14px;
+            color: #aaa;
+            line-height: 1.5;
+        }
+
+        .highlight {
+            color: #ff00ff;
+            font-weight: bold;
+        }
+
+        .task-indicator {
+            position: absolute;
+            top: 50%;
+            right: 100px;
+            transform: translateY(-50%);
+            z-index: 10;
+            background: rgba(0, 20, 40, 0.9);
+            border: 2px solid #ff6600;
+            padding: 15px 20px;
+            border-radius: 8px;
+            min-width: 200px;
+        }
+
+        .task-title {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .task-item {
+            font-size: 14px;
+            color: #ff6600;
+            padding: 5px 0;
+            border-left: 3px solid #ff6600;
+            padding-left: 10px;
+            margin-bottom: 5px;
+            opacity: 0.3;
+            transition: all 0.3s ease;
+        }
+
+        .task-item.active {
+            opacity: 1;
+            background: rgba(255, 102, 0, 0.1);
+        }
+
+        .corner {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 2px solid #ff00ff;
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+
+        .corner-tl { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+        .corner-tr { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+        .corner-br { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+    </style>
+</head>
+<body>
+    <canvas id="webgl-canvas"></canvas>
+
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <div class="title">EVENT LOOP</div>
+    <div class="subtitle">JavaScript Concurrency Model</div>
+
+    <div class="component-label label-callstack">CALL STACK</div>
+    <div class="component-label label-webapis">WEB APIs</div>
+    <div class="component-label label-queue">CALLBACK QUEUE</div>
+    <div class="component-label label-eventloop">EVENT LOOP</div>
+
+    <div class="task-indicator">
+        <div class="task-title">Current Execution</div>
+        <div class="task-item" id="task-1">console.log()</div>
+        <div class="task-item" id="task-2">setTimeout()</div>
+        <div class="task-item" id="task-3">fetch()</div>
+        <div class="task-item" id="task-4">Promise</div>
+        <div class="task-item" id="task-5">callback</div>
+    </div>
+
+    <div class="code-explanation">
+        <div class="code-step" id="code-step">STEP 1</div>
+        <div class="code-line" id="code-line">console.log('Start')</div>
+        <div class="code-desc" id="code-desc">Synchronous function added to Call Stack and executed immediately</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('webgl-canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        
+        function resizeRenderer() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        resizeRenderer();
+        window.addEventListener('resize', resizeRenderer);
+        
+        camera.position.set(0, 8, 20);
+        camera.lookAt(0, 0, 0);
+
+        // Освещение
+        const ambientLight = new THREE.AmbientLight(0x404040, 1.5);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        directionalLight.position.set(10, 20, 10);
+        scene.add(directionalLight);
+
+        // Частицы фона
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 500;
+        const positions = new Float32Array(particlesCount * 3);
+        
+        for(let i = 0; i < particlesCount * 3; i++) {
+            positions[i] = (Math.random() - 0.5) * 50;
+        }
+        
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const particlesMaterial = new THREE.PointsMaterial({
+            color: 0x00ffff,
+            size: 0.05,
+            transparent: true,
+            opacity: 0.3,
+            blending: THREE.AdditiveBlending
+        });
+        
+        const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particles);
+
+        // Создание компонентов Event Loop
+        
+        // Call Stack (левый столб)
+        const stackGeometry = new THREE.BoxGeometry(3, 8, 2);
+        const stackMaterial = new THREE.MeshLambertMaterial({
+            color: 0xff00ff,
+            transparent: true,
+            opacity: 0.2,
+            emissive: 0xff00ff,
+            emissiveIntensity: 0.2
+        });
+        const stack = new THREE.Mesh(stackGeometry, stackMaterial);
+        stack.position.set(-8, 0, 0);
+        scene.add(stack);
+
+        const stackEdges = new THREE.EdgesGeometry(stackGeometry);
+        const stackLines = new THREE.LineSegments(stackEdges, 
+            new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 2 })
+        );
+        stack.add(stackLines);
+
+        // Web APIs (центральный куб)
+        const apiGeometry = new THREE.BoxGeometry(4, 4, 4);
+        const apiMaterial = new THREE.MeshLambertMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.2,
+            emissive: 0x00ffff,
+            emissiveIntensity: 0.2
+        });
+        const apis = new THREE.Mesh(apiGeometry, apiMaterial);
+        apis.position.set(0, 0, 0);
+        scene.add(apis);
+
+        const apiEdges = new THREE.EdgesGeometry(apiGeometry);
+        const apiLines = new THREE.LineSegments(apiEdges, 
+            new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 })
+        );
+        apis.add(apiLines);
+
+        // Callback Queue (правый столб)
+        const queueGeometry = new THREE.BoxGeometry(3, 8, 2);
+        const queueMaterial = new THREE.MeshLambertMaterial({
+            color: 0xffff00,
+            transparent: true,
+            opacity: 0.2,
+            emissive: 0xffff00,
+            emissiveIntensity: 0.2
+        });
+        const queue = new THREE.Mesh(queueGeometry, queueMaterial);
+        queue.position.set(8, 0, 0);
+        scene.add(queue);
+
+        const queueEdges = new THREE.EdgesGeometry(queueGeometry);
+        const queueLines = new THREE.LineSegments(queueEdges, 
+            new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2 })
+        );
+        queue.add(queueLines);
+
+        // Event Loop (кольцо внизу)
+        const loopGeometry = new THREE.TorusGeometry(6, 0.3, 16, 100);
+        const loopMaterial = new THREE.MeshLambertMaterial({
+            color: 0x00ff00,
+            emissive: 0x00ff00,
+            emissiveIntensity: 0.3
+        });
+        const loop = new THREE.Mesh(loopGeometry, loopMaterial);
+        loop.position.y = -6;
+        loop.rotation.x = Math.PI / 2;
+        scene.add(loop);
+
+        // Стрелки между компонентами
+        function createArrow(from, to, color) {
+            const direction = new THREE.Vector3().subVectors(to, from);
+            const length = direction.length();
+            const arrowHelper = new THREE.ArrowHelper(
+                direction.normalize(),
+                from,
+                length,
+                color,
+                0.5,
+                0.3
+            );
+            arrowHelper.line.material.transparent = true;
+            arrowHelper.line.material.opacity = 0.5;
+            arrowHelper.cone.material.transparent = true;
+            arrowHelper.cone.material.opacity = 0.7;
+            return arrowHelper;
+        }
+
+        const arrow1 = createArrow(
+            new THREE.Vector3(-6.5, 0, 0),
+            new THREE.Vector3(-2, 0, 0),
+            0xff00ff
+        );
+        scene.add(arrow1);
+
+        const arrow2 = createArrow(
+            new THREE.Vector3(2, 0, 0),
+            new THREE.Vector3(6.5, 0, 0),
+            0x00ffff
+        );
+        scene.add(arrow2);
+
+        const arrow3 = createArrow(
+            new THREE.Vector3(6.5, -3, 0),
+            new THREE.Vector3(-6.5, -3, 0),
+            0xffff00
+        );
+        scene.add(arrow3);
+
+        // Задачи (движущиеся кубики)
+        const tasks = [];
+        
+        function createTask(color, label) {
+            const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+            const material = new THREE.MeshLambertMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 0.5
+            });
+            const task = new THREE.Mesh(geometry, material);
+            
+            const edges = new THREE.EdgesGeometry(geometry);
+            const lines = new THREE.LineSegments(edges, 
+                new THREE.LineBasicMaterial({ color: 0xffffff })
+            );
+            task.add(lines);
+            
+            task.userData = { label: label, phase: 0, progress: 0 };
+            scene.add(task);
+            tasks.push(task);
+            return task;
+        }
+
+        // Сценарий выполнения кода
+        const codeSteps = [
+            {
+                step: 1,
+                code: "console.log('Start')",
+                desc: "Synchronous function added to Call Stack and executed immediately",
+                taskId: "task-1",
+                action: () => {
+                    const t = createTask(0xff00ff, "log");
+                    t.position.set(-8, 3, 0);
+                    t.userData.path = [{x: -8, y: 3}, {x: -8, y: -4}];
+                }
+            },
+            {
+                step: 2,
+                code: "setTimeout(() => {...}, 1000)",
+                desc: "Asynchronous API call - moved from Stack to Web APIs for timer execution",
+                taskId: "task-2",
+                action: () => {
+                    const t = createTask(0x00ffff, "timer");
+                    t.position.set(-8, 2, 0);
+                    t.userData.path = [{x: -8, y: 2}, {x: 0, y: 0}];
+                }
+            },
+            {
+                step: 3,
+                code: "fetch('api/data')",
+                desc: "Network request delegated to Web APIs - non-blocking I/O operation",
+                taskId: "task-3",
+                action: () => {
+                    const t = createTask(0x00ffff, "fetch");
+                    t.position.set(-8, 1, 0);
+                    t.userData.path = [{x: -8, y: 1}, {x: 0, y: -1}];
+                }
+            },
+            {
+                step: 4,
+                code: "Promise.resolve().then(...)",
+                desc: "Microtask created - higher priority than callback queue tasks",
+                taskId: "task-4",
+                action: () => {
+                    const t = createTask(0xff6600, "promise");
+                    t.position.set(-8, 0, 0);
+                    t.userData.path = [{x: -8, y: 0}, {x: 8, y: 2}];
+                }
+            },
+            {
+                step: 5,
+                code: "console.log('End')",
+                desc: "Last synchronous operation - stack will be empty after this",
+                taskId: "task-1",
+                action: () => {
+                    const t = createTask(0xff00ff, "log");
+                    t.position.set(-8, -1, 0);
+                    t.userData.path = [{x: -8, y: -1}, {x: -8, y: -4}];
+                }
+            },
+            {
+                step: 6,
+                code: "// Callback moved to queue",
+                desc: "Timer completed - callback moved from Web APIs to Callback Queue",
+                taskId: "task-2",
+                action: () => {
+                    if (tasks[1]) {
+                        tasks[1].userData.path.push({x: 8, y: 1});
+                    }
+                }
+            },
+            {
+                step: 7,
+                code: "// Event Loop checks stack",
+                desc: "Stack is empty - Event Loop moves callback from queue to stack",
+                taskId: "task-5",
+                action: () => {
+                    if (tasks[1]) {
+                        tasks[1].userData.path.push({x: -8, y: 1});
+                    }
+                }
+            },
+            {
+                step: 8,
+                code: "// Callback executed",
+                desc: "Callback function executed on Call Stack - cycle complete",
+                taskId: "task-5",
+                action: () => {
+                    if (tasks[1]) {
+                        tasks[1].userData.path.push({x: -8, y: -4});
+                    }
+                }
+            }
+        ];
+
+        let currentStepIndex = 0;
+        let stepTimer = 0;
+        const stepDuration = 3000;
+
+        function executeStep(index) {
+            if (index >= codeSteps.length) {
+                setTimeout(() => {
+                    // Перезапуск анимации
+                    tasks.forEach(t => scene.remove(t));
+                    tasks.length = 0;
+                    currentStepIndex = 0;
+                }, 2000);
+                return;
+            }
+
+            const step = codeSteps[index];
+            document.getElementById('code-step').textContent = `STEP ${step.step}`;
+            document.getElementById('code-line').textContent = step.code;
+            document.getElementById('code-desc').textContent = step.desc;
+
+            // Подсветка активной задачи
+            document.querySelectorAll('.task-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(step.taskId)?.classList.add('active');
+
+            step.action();
+        }
+
+        // Анимация движения задач
+        function animateTasks() {
+            tasks.forEach(task => {
+                if (!task.userData.path || task.userData.path.length === 0) return;
+                
+                const currentPoint = task.userData.path[0];
+                const targetX = currentPoint.x;
+                const targetY = currentPoint.y;
+                
+                const dx = targetX - task.position.x;
+                const dy = targetY - task.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < 0.1) {
+                    task.userData.path.shift();
+                } else {
+                    task.position.x += dx * 0.02;
+                    task.position.y += dy * 0.02;
+                }
+                
+                // Вращение
+                task.rotation.x += 0.02;
+                task.rotation.y += 0.02;
+            });
+        }
+
+        // Запуск первого шага
+        setTimeout(() => executeStep(0), 1000);
+
+        // Анимация
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            stepTimer += 16;
+            if (stepTimer >= stepDuration) {
+                stepTimer = 0;
+                currentStepIndex++;
+                executeStep(currentStepIndex);
+            }
+            
+            // Вращение компонентов
+            apis.rotation.y += 0.005;
+            loop.rotation.z += 0.01;
+            
+            particles.rotation.y += 0.0003;
+            
+            // Пульсация
+            stack.material.emissiveIntensity = 0.2 + Math.sin(Date.now() * 0.001) * 0.1;
+            apis.material.emissiveIntensity = 0.2 + Math.sin(Date.now() * 0.0015) * 0.1;
+            queue.material.emissiveIntensity = 0.2 + Math.sin(Date.now() * 0.0012) * 0.1;
+            
+            animateTasks();
+            
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+    </script>
+</body>
+</html>
+
