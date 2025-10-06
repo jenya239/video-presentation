@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limit Definition Explained</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            background: #0a0e27;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+        }
+
+        #webgl-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .title {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 48px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 20px #00ffff;
+            letter-spacing: 4px;
+            z-index: 10;
+        }
+
+        .definition-panel {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 20, 40, 0.95);
+            border: 3px solid #00ffff;
+            padding: 25px 40px;
+            border-radius: 12px;
+            z-index: 10;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.4);
+            min-width: 800px;
+        }
+
+        .definition-text {
+            font-size: 32px;
+            color: #fff;
+            text-align: center;
+            letter-spacing: 3px;
+            line-height: 1.8;
+        }
+
+        .symbol {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 0 3px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .symbol.highlight {
+            background: rgba(255, 0, 255, 0.3);
+            transform: scale(1.3);
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.6);
+        }
+
+        .epsilon { color: #ff00ff; }
+        .delta { color: #00ff00; }
+        .x-var { color: #ffff00; }
+        .function { color: #00ffff; }
+        .limit-val { color: #ff6600; }
+
+        .explanation-box {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 20, 40, 0.95);
+            border: 2px solid #ff00ff;
+            padding: 30px 50px;
+            border-radius: 12px;
+            z-index: 10;
+            min-width: 900px;
+            max-width: 1200px;
+            box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
+        }
+
+        .step-number {
+            font-size: 14px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .explanation-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #00ffff;
+        }
+
+        .explanation-text {
+            font-size: 16px;
+            color: #ccc;
+            line-height: 1.8;
+            margin-bottom: 12px;
+        }
+
+        .example-box {
+            background: rgba(255, 0, 255, 0.1);
+            border-left: 4px solid #ff00ff;
+            padding: 15px 20px;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+
+        .example-title {
+            font-size: 14px;
+            color: #ff00ff;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .example-text {
+            font-size: 15px;
+            color: #ddd;
+            line-height: 1.6;
+        }
+
+        .formula {
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 255, 255, 0.1);
+            padding: 8px 15px;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 5px 0;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 200px;
+            right: 40px;
+            background: rgba(0, 20, 40, 0.9);
+            border: 2px solid #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            z-index: 10;
+            min-width: 250px;
+        }
+
+        .info-title {
+            font-size: 14px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+
+        .info-label {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00ff00;
+        }
+
+        .corner {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border: 2px solid #ff00ff;
+            z-index: 5;
+            opacity: 0.3;
+        }
+
+        .corner-tl { top: 15px; left: 15px; border-right: none; border-bottom: none; }
+        .corner-tr { top: 15px; right: 15px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: 15px; left: 15px; border-right: none; border-top: none; }
+        .corner-br { bottom: 15px; right: 15px; border-left: none; border-top: none; }
+    </style>
+</head>
+<body>
+    <canvas id="webgl-canvas"></canvas>
+
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <div class="title">LIMIT DEFINITION</div>
+
+    <div class="definition-panel">
+        <div class="definition-text">
+            <span class="symbol" id="sym-forall1">∀</span>
+            <span class="symbol epsilon" id="sym-eps">ε</span>
+            <span class="symbol" id="sym-gt1">&gt;</span>
+            <span class="symbol" id="sym-zero1">0</span>
+            <span class="symbol" id="sym-comma1">,</span>
+            <span class="symbol" id="sym-exists">∃</span>
+            <span class="symbol delta" id="sym-delta">δ</span>
+            <span class="symbol" id="sym-gt2">&gt;</span>
+            <span class="symbol" id="sym-zero2">0</span>
+            <span class="symbol" id="sym-colon">:</span>
+            <span class="symbol" id="sym-forall2">∀</span>
+            <span class="symbol x-var" id="sym-x">x</span>
+            <span class="symbol" id="sym-comma2">,</span>
+            <span class="symbol" id="sym-cond">0 &lt;</span>
+            <span class="symbol" id="sym-xdist">|x - a|</span>
+            <span class="symbol" id="sym-lt1">&lt;</span>
+            <span class="symbol delta" id="sym-delta2">δ</span>
+            <span class="symbol" id="sym-implies">⟹</span>
+            <span class="symbol" id="sym-fdist">|f(x) - L|</span>
+            <span class="symbol" id="sym-lt2">&lt;</span>
+            <span class="symbol epsilon" id="sym-eps2">ε</span>
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <div class="info-title">Current Values</div>
+        <div class="info-item">
+            <div class="info-label">Point (a)</div>
+            <div class="info-value" id="value-a">2.0</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">Limit (L)</div>
+            <div class="info-value" id="value-L">4.0</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">Epsilon (ε)</div>
+            <div class="info-value" id="value-eps">0.5</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">Delta (δ)</div>
+            <div class="info-value" id="value-delta">0.25</div>
+        </div>
+    </div>
+
+    <div class="explanation-box">
+        <div class="step-number" id="step-num">STEP 1 of 12</div>
+        <div class="explanation-title" id="expl-title">Symbol: ∀ (For All)</div>
+        <div class="explanation-text" id="expl-text">
+            This is the universal quantifier. It means "for all" or "for every". 
+            We're starting to say that something must work for EVERY possible value.
+        </div>
+        <div class="example-box">
+            <div class="example-title">Example</div>
+            <div class="example-text" id="expl-example">
+                Think of it like a guarantee: "No matter what number you pick..."
+                This makes the definition very strong - it must work in ALL cases, not just some.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('webgl-canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        
+        function resizeRenderer() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        resizeRenderer();
+        window.addEventListener('resize', resizeRenderer);
+        
+        camera.position.set(0, 5, 25);
+        camera.lookAt(0, 0, 0);
+
+        // Освещение
+        const ambientLight = new THREE.AmbientLight(0x404040, 2);
+        scene.add(ambientLight);
+
+        // Координатные оси
+        const axesHelper = new THREE.AxesHelper(12);
+        axesHelper.material.transparent = true;
+        axesHelper.material.opacity = 0.3;
+        scene.add(axesHelper);
+
+        // Сетка
+        const gridHelper = new THREE.GridHelper(24, 24, 0x00ffff, 0x00ffff);
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.1;
+        gridHelper.position.y = -5;
+        scene.add(gridHelper);
+
+        // Функция f(x) = x²
+        function fx(x) {
+            return x * x;
+        }
+
+        // График функции
+        const functionPoints = [];
+        for (let x = -6; x <= 6; x += 0.1) {
+            functionPoints.push(new THREE.Vector3(x * 2, fx(x) - 4, 0));
+        }
+        const functionGeometry = new THREE.BufferGeometry().setFromPoints(functionPoints);
+        const functionMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x00ffff, 
+            linewidth: 3 
+        });
+        const functionCurve = new THREE.Line(functionGeometry, functionMaterial);
+        scene.add(functionCurve);
+
+        // Точка a и предел L
+        const a = 2;
+        const L = fx(a);
+        
+        // Точка на графике (a, f(a))
+        const pointGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+        const pointMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xff00ff,
+            emissive: 0xff00ff,
+            emissiveIntensity: 0.5
+        });
+        const limitPoint = new THREE.Mesh(pointGeometry, pointMaterial);
+        limitPoint.position.set(a * 2, L - 4, 0);
+        scene.add(limitPoint);
+
+        // Эпсилон-окрестность (горизонтальная полоса)
+        let epsilon = 2;
+        const epsilonGeometry = new THREE.PlaneGeometry(24, epsilon * 2);
+        const epsilonMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff00ff,
+            transparent: true,
+            opacity: 0,
+            side: THREE.DoubleSide
+        });
+        const epsilonBand = new THREE.Mesh(epsilonGeometry, epsilonMaterial);
+        epsilonBand.position.set(0, L - 4, -0.5);
+        scene.add(epsilonBand);
+
+        // Рамка эпсилон
+        const epsilonEdges = new THREE.EdgesGeometry(epsilonGeometry);
+        const epsilonLines = new THREE.LineSegments(epsilonEdges,
+            new THREE.LineBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0 })
+        );
+        epsilonBand.add(epsilonLines);
+
+        // Дельта-окрестность (вертикальная полоса)
+        let delta = 1;
+        const deltaGeometry = new THREE.PlaneGeometry(delta * 4, 20);
+        const deltaMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ff00,
+            transparent: true,
+            opacity: 0,
+            side: THREE.DoubleSide
+        });
+        const deltaBand = new THREE.Mesh(deltaGeometry, deltaMaterial);
+        deltaBand.position.set(a * 2, 0, -1);
+        scene.add(deltaBand);
+
+        const deltaEdges = new THREE.EdgesGeometry(deltaGeometry);
+        const deltaLines = new THREE.LineSegments(deltaEdges,
+            new THREE.LineBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0 })
+        );
+        deltaBand.add(deltaLines);
+
+        // Стрелки для обозначения эпсилон и дельта
+        const arrowEps1 = new THREE.ArrowHelper(
+            new THREE.Vector3(0, 1, 0),
+            new THREE.Vector3(10, L - 4, 0),
+            epsilon,
+            0xff00ff, 0.5, 0.3
+        );
+        arrowEps1.visible = false;
+        scene.add(arrowEps1);
+
+        const arrowEps2 = new THREE.ArrowHelper(
+            new THREE.Vector3(0, -1, 0),
+            new THREE.Vector3(10, L - 4, 0),
+            epsilon,
+            0xff00ff, 0.5, 0.3
+        );
+        arrowEps2.visible = false;
+        scene.add(arrowEps2);
+
+        const arrowDelta1 = new THREE.ArrowHelper(
+            new THREE.Vector3(1, 0, 0),
+            new THREE.Vector3(a * 2, -7, 0),
+            delta * 2,
+            0x00ff00, 0.5, 0.3
+        );
+        arrowDelta1.visible = false;
+        scene.add(arrowDelta1);
+
+        const arrowDelta2 = new THREE.ArrowHelper(
+            new THREE.Vector3(-1, 0, 0),
+            new THREE.Vector3(a * 2, -7, 0),
+            delta * 2,
+            0x00ff00, 0.5, 0.3
+        );
+        arrowDelta2.visible = false;
+        scene.add(arrowDelta2);
+
+        // Шаги объяснения
+        const steps = [
+            {
+                symbol: 'sym-forall1',
+                title: 'Symbol: ∀ (For All)',
+                text: 'This is the universal quantifier. It means "for all" or "for every". We\'re starting to say that something must work for EVERY possible value.',
+                example: 'Think of it like a guarantee: "No matter what number you pick..." This makes the definition very strong - it must work in ALL cases, not just some.',
+                action: () => {}
+            },
+            {
+                symbol: 'sym-eps',
+                title: 'Symbol: ε (Epsilon)',
+                text: 'Epsilon represents how close we want f(x) to be to the limit L. It\'s a small positive number that measures vertical distance on the graph. Think of it as our "tolerance" or "margin of error".',
+                example: 'If ε = 0.5, we want f(x) to be within 0.5 units of L (between L-0.5 and L+0.5). The smaller epsilon is, the more precise our requirement.',
+                action: () => {
+                    epsilon = 2;
+                    animateValue(epsilonMaterial, 'opacity', 0.2, 500);
+                    animateValue(epsilonLines.material, 'opacity', 0.8, 500);
+                    arrowEps1.visible = true;
+                    arrowEps2.visible = true;
+                    updateEpsilonBand();
+                    document.getElementById('value-eps').textContent = epsilon.toFixed(2);
+                }
+            },
+            {
+                symbol: 'sym-gt1',
+                title: 'Symbol: > 0',
+                text: 'Epsilon must be POSITIVE and GREATER than zero. We can\'t have negative or zero distance. This ensures we\'re actually setting a meaningful constraint.',
+                example: 'We can choose ε = 0.1, or ε = 0.01, or ε = 0.0001, but never ε = 0 or ε = -1. Any positive number works, no matter how small!',
+                action: () => {
+                    epsilon = 1.5;
+                    updateEpsilonBand();
+                    document.getElementById('value-eps').textContent = epsilon.toFixed(2);
+                }
+            },
+            {
+                symbol: 'sym-exists',
+                title: 'Symbol: ∃ (There Exists)',
+                text: 'The existential quantifier means "there exists" or "we can find". After someone picks an epsilon, we need to prove that we CAN FIND a delta that works.',
+                example: 'It\'s like saying: "No matter what challenge you give me (epsilon), I can find a solution (delta)." We don\'t need to find ALL deltas, just at least one that works.',
+                action: () => {}
+            },
+            {
+                symbol: 'sym-delta',
+                title: 'Symbol: δ (Delta)',
+                text: 'Delta represents how close x must be to point a. It\'s a small positive number that measures horizontal distance on the graph. Delta is our "response" to the epsilon "challenge".',
+                example: 'If δ = 0.25, then x must be within 0.25 units of a (between a-0.25 and a+0.25). The key insight: delta depends on epsilon!',
+                action: () => {
+                    delta = 1;
+                    animateValue(deltaMaterial, 'opacity', 0.2, 500);
+                    animateValue(deltaLines.material, 'opacity', 0.8, 500);
+                    arrowDelta1.visible = true;
+                    arrowDelta2.visible = true;
+                    updateDeltaBand();
+                    document.getElementById('value-delta').textContent = delta.toFixed(2);
+                }
+            },
+            {
+                symbol: 'sym-gt2',
+                title: 'Symbol: > 0 (for δ)',
+                text: 'Just like epsilon, delta must also be POSITIVE and GREATER than zero. We need actual distance, not zero or negative values.',
+                example: 'Typical values: δ = 0.5, δ = 0.1, δ = 0.001. The clever part of limits is figuring out the relationship between ε and δ for each specific function.',
+                action: () => {
+                    delta = 0.7;
+                    updateDeltaBand();
+                    document.getElementById('value-delta').textContent = delta.toFixed(2);
+                }
+            },
+            {
+                symbol: 'sym-forall2',
+                title: 'Symbol: ∀ (For All x)',
+                text: 'Another universal quantifier! Now we\'re saying "for ALL x values" in our delta neighborhood. Every single x in the delta range must satisfy our condition.',
+                example: 'Not just some x values, not most x values, but EVERY x value within delta of a must map to a y value within epsilon of L.',
+                action: () => {}
+            },
+            {
+                symbol: 'sym-xdist',
+                title: 'Expression: |x - a|',
+                text: 'This is the absolute value of the distance from x to a. It measures how far x is from our point of interest on the x-axis (horizontal distance).',
+                example: 'If a = 2 and x = 2.3, then |x - a| = |2.3 - 2| = 0.3. If x = 1.8, then |x - a| = |1.8 - 2| = 0.2. Absolute value ensures distance is always positive.',
+                action: () => {
+                    delta = 0.5;
+                    updateDeltaBand();
+                    document.getElementById('value-delta').textContent = delta.toFixed(2);
+                }
+            },
+            {
+                symbol: 'sym-cond',
+                title: 'Condition: 0 < |x - a| < δ',
+                text: 'This is the critical condition with TWO parts: (1) 0 < |x - a| means x ≠ a (we exclude the point itself), and (2) |x - a| < δ means x is within delta of a.',
+                example: 'If a = 2 and δ = 0.5, then x must be in (1.5, 2.5) BUT not equal to 2. We care about what happens NEAR the point, not AT the point. This is why limits can exist even when f(a) is undefined!',
+                action: () => {
+                    delta = 0.4;
+                    updateDeltaBand();
+                    document.getElementById('value-delta').textContent = delta.toFixed(2);
+                }
+            },
+            {
+                symbol: 'sym-implies',
+                title: 'Symbol: ⟹ (Implies)',
+                text: 'This is logical implication: "IF the left side is true, THEN the right side must be true". It connects our condition (x near a) to our conclusion (f(x) near L).',
+                example: 'Structure: "IF x is in the delta neighborhood of a, THEN f(x) must be in the epsilon neighborhood of L." This is the heart of the limit definition!',
+                action: () => {}
+            },
+            {
+                symbol: 'sym-fdist',
+                title: 'Expression: |f(x) - L|',
+                text: 'This measures the absolute distance from f(x) to the limit L. It\'s the vertical distance between where the function actually is and where we want it to be.',
+                example: 'If f(x) = 4.3 and L = 4, then |f(x) - L| = |4.3 - 4| = 0.3. We want this distance to be smaller than epsilon.',
+                action: () => {
+                    epsilon = 1;
+                    updateEpsilonBand();
+                    document.getElementById('value-eps').textContent = epsilon.toFixed(2);
+                }
+            },
+            {
+                symbol: 'sym-eps2',
+                title: 'Conclusion: |f(x) - L| < ε',
+                text: 'THE PAYOFF! If x is within delta of a, then f(x) MUST be within epsilon of L. This completes the definition: we can make f(x) arbitrarily close to L by making x close enough to a.',
+                example: 'COMPLETE PICTURE: Pick any ε > 0 (how close you want to L). I can find δ > 0 such that whenever 0 < |x-a| < δ, we get |f(x)-L| < ε. The green zone (δ) maps into the pink zone (ε)!',
+                action: () => {
+                    epsilon = 0.8;
+                    delta = 0.3;
+                    updateEpsilonBand();
+                    updateDeltaBand();
+                    document.getElementById('value-eps').textContent = epsilon.toFixed(2);
+                    document.getElementById('value-delta').textContent = delta.toFixed(2);
+                }
+            }
+        ];
+
+        let currentStep = 0;
+        let stepTimer = 0;
+        const stepDuration = 8000; // 8 секунд на шаг
+
+        function animateValue(obj, prop, target, duration) {
+            const start = obj[prop];
+            const startTime = Date.now();
+            
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                obj[prop] = start + (target - start) * progress;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+            update();
+        }
+
+        function updateEpsilonBand() {
+            epsilonBand.geometry.dispose();
+            epsilonBand.geometry = new THREE.PlaneGeometry(24, epsilon * 2);
+            
+            const newEdges = new THREE.EdgesGeometry(epsilonBand.geometry);
+            epsilonLines.geometry.dispose();
+            epsilonLines.geometry = newEdges;
+            
+            arrowEps1.setLength(epsilon, 0.5, 0.3);
+            arrowEps2.setLength(epsilon, 0.5, 0.3);
+        }
+
+        function updateDeltaBand() {
+            deltaBand.geometry.dispose();
+            deltaBand.geometry = new THREE.PlaneGeometry(delta * 4, 20);
+            
+            const newEdges = new THREE.EdgesGeometry(deltaBand.geometry);
+            deltaLines.geometry.dispose();
+            deltaLines.geometry = newEdges;
+            
+            arrowDelta1.setLength(delta * 2, 0.5, 0.3);
+            arrowDelta2.setLength(delta * 2, 0.5, 0.3);
+        }
+
+        function executeStep(index) {
+            if (index >= steps.length) {
+                setTimeout(() => {
+                    // Перезапуск
+                    currentStep = 0;
+                    epsilonMaterial.opacity = 0;
+                    epsilonLines.material.opacity = 0;
+                    deltaMaterial.opacity = 0;
+                    deltaLines.material.opacity = 0;
+                    arrowEps1.visible = false;
+                    arrowEps2.visible = false;
+                    arrowDelta1.visible = false;
+                    arrowDelta2.visible = false;
+                    document.querySelectorAll('.symbol').forEach(el => el.classList.remove('highlight'));
+                    executeStep(0);
+                }, 3000);
+                return;
+            }
+
+            const step = steps[index];
+            
+            // Убираем предыдущую подсветку
+            document.querySelectorAll('.symbol').forEach(el => el.classList.remove('highlight'));
+            
+            // Подсвечиваем текущий символ
+            document.getElementById(step.symbol)?.classList.add('highlight');
+            
+            // Обновляем текст
+            document.getElementById('step-num').textContent = `STEP ${index + 1} of ${steps.length}`;
+            document.getElementById('expl-title').textContent = step.title;
+            document.getElementById('expl-text').textContent = step.text;
+            document.getElementById('expl-example').textContent = step.example;
+            
+            // Выполняем действие
+            step.action();
+        }
+
+        // Запуск
+        setTimeout(() => executeStep(0), 1000);
+
+        // Анимация
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            stepTimer += 16;
+            if (stepTimer >= stepDuration) {
+                stepTimer = 0;
+                currentStep++;
+                executeStep(currentStep);
+            }
+            
+            // Вращение точки предела
+            limitPoint.rotation.y += 0.02;
+            
+            // Пульсация
+            const pulse = 1 + Math.sin(Date.now() * 0.002) * 0.1;
+            limitPoint.scale.set(pulse, pulse, pulse);
+            
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+    </script>
+</body>
+</html>
+
