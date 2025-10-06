@@ -1,0 +1,162 @@
+[
+  {
+    "name": "casino-admin",
+    "commits": 945,
+    "firstDate": 1671721996,
+    "lastDate": 1729686468,
+    "files": 28135,
+    "lines": 5458231
+  },
+  {
+    "name": "casino-webcheck",
+    "commits": 20,
+    "firstDate": 1753088321,
+    "lastDate": 1757414247,
+    "files": 2,
+    "lines": 148
+  },
+  {
+    "name": "casino-sg-client",
+    "commits": 1113,
+    "firstDate": 1732708624,
+    "lastDate": 1759239069,
+    "files": 21696,
+    "lines": 3411558
+  },
+  {
+    "name": "buffalopay-admin-client",
+    "commits": 14,
+    "firstDate": 1759178939,
+    "lastDate": 1759399691,
+    "files": 15289,
+    "lines": 2773424
+  },
+  {
+    "name": "casino-sg-tg-service",
+    "commits": 10,
+    "firstDate": 1738046755,
+    "lastDate": 1740431433,
+    "files": 13789,
+    "lines": 1877087
+  },
+  {
+    "name": "casino-sg",
+    "commits": 3530,
+    "firstDate": 1689691361,
+    "lastDate": 1747393675,
+    "files": 34306,
+    "lines": 6007749
+  },
+  {
+    "name": "dash",
+    "commits": 16,
+    "firstDate": 1751894310,
+    "lastDate": 1751971890,
+    "files": 732,
+    "lines": 151652
+  },
+  {
+    "name": "casino-sg-bp-service2",
+    "commits": 332,
+    "firstDate": 1712222861,
+    "lastDate": 1734098555,
+    "files": 15392,
+    "lines": 2954336
+  },
+  {
+    "name": "casino-sg-bp-service",
+    "commits": 634,
+    "firstDate": 1712222861,
+    "lastDate": 1757966078,
+    "files": 18335,
+    "lines": 2989842
+  },
+  {
+    "name": "api-tools",
+    "commits": 2,
+    "firstDate": 1758270100,
+    "lastDate": 1758274268,
+    "files": 682,
+    "lines": 145188
+  },
+  {
+    "name": "casino-sg-loyalty-service",
+    "commits": 128,
+    "firstDate": 1737448749,
+    "lastDate": 1757415109,
+    "files": 19275,
+    "lines": 3598340
+  },
+  {
+    "name": "casino-sg-nest-core",
+    "commits": 145,
+    "firstDate": 1749558184,
+    "lastDate": 1752677063,
+    "files": 27413,
+    "lines": 4504496
+  },
+  {
+    "name": "casino-2wp-bp-service",
+    "commits": 5,
+    "firstDate": 1728563968,
+    "lastDate": 1729686566,
+    "files": 16680,
+    "lines": 3950004
+  },
+  {
+    "name": "casino-sg-notify-service",
+    "commits": 84,
+    "firstDate": 1729861875,
+    "lastDate": 1755267169,
+    "files": 21124,
+    "lines": 4698732
+  },
+  {
+    "name": "casino-cms",
+    "commits": 53,
+    "firstDate": 1708349875,
+    "lastDate": 1758883368,
+    "files": 42244,
+    "lines": 5446483
+  },
+  {
+    "name": "casino-sg-client2",
+    "commits": 79,
+    "firstDate": 1732708624,
+    "lastDate": 1739405285,
+    "files": 20306,
+    "lines": 3242368
+  },
+  {
+    "name": "casino-sg-client-core",
+    "commits": 241,
+    "firstDate": 1738933584,
+    "lastDate": 1759763550,
+    "files": 18389,
+    "lines": 3116958
+  },
+  {
+    "name": "tools2",
+    "commits": 20,
+    "firstDate": 1744307092,
+    "lastDate": 1745610778,
+    "files": 829,
+    "lines": 567564
+  },
+  {
+    "name": "sonarqube8.9-docker-compose",
+    "commits": 9,
+    "firstDate": 1642170155,
+    "lastDate": 1662986528,
+    "files": 26,
+    "lines": 36232
+  },
+  {
+    "name": "casino-sg-admin",
+    "commits": 2432,
+    "firstDate": 1689595021,
+    "lastDate": 1759238426,
+    "files": 31365,
+    "lines": 4647654
+  }
+]

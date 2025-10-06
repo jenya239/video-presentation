@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nord Projects Timeline</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Courier New', monospace;
+            color: #00ff88;
+        }
+        #canvas { display: block; }
+        .info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 25px;
+            border-radius: 10px;
+            border: 2px solid #00ff88;
+            font-size: 16px;
+            max-width: 400px;
+        }
+        .info h1 {
+            margin: 0 0 20px 0;
+            font-size: 28px;
+            color: #00ff88;
+            text-shadow: 0 0 20px #00ff88;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 18px;
+        }
+        .metric-label { color: #00ffff; }
+        .metric-value { 
+            color: #ff3366;
+            font-weight: bold;
+        }
+        .legend {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #00ff88;
+            font-size: 16px;
+        }
+        .legend h3 {
+            margin: 0 0 15px 0;
+            font-size: 20px;
+            color: #00ff88;
+        }
+        .legend-item {
+            margin: 8px 0;
+            font-size: 16px;
+        }
+        .timeline {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #00ff88;
+            font-size: 18px;
+        }
+        .timeline h3 {
+            margin: 0 0 10px 0;
+            font-size: 20px;
+            color: #00ff88;
+        }
+        #current-year {
+            font-size: 32px;
+            color: #ff3366;
+            font-weight: bold;
+        }
+        .hovered-project {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            border: 3px solid #00ff88;
+            font-size: 20px;
+            pointer-events: none;
+            display: none;
+            z-index: 1000;
+            min-width: 500px;
+        }
+        .hovered-project h2 {
+            margin: 0 0 20px 0;
+            font-size: 32px;
+            color: #00ff88;
+            text-shadow: 0 0 20px #00ff88;
+        }
+        .hovered-project .stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 12px 0;
+            font-size: 20px;
+        }
+        .hovered-project .stat-label {
+            color: #00ffff;
+        }
+        .hovered-project .stat-value {
+            color: #ff3366;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="info">
+        <h1>NORD ECOSYSTEM</h1>
+        <div class="metric">
+            <span class="metric-label">Total Projects:</span>
+            <span class="metric-value" id="total-projects">0</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Total Commits:</span>
+            <span class="metric-value" id="total-commits">0</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Lines of Code:</span>
+            <span class="metric-value" id="total-lines">0</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Active Projects:</span>
+            <span class="metric-value" id="active-projects">0</span>
+        </div>
+    </div>
+    
+    <div class="legend">
+        <h3>VISUALIZATION</h3>
+        <div class="legend-item">• Size = Commit Count</div>
+        <div class="legend-item">• Height = Code Size</div>
+        <div class="legend-item">• Position = Timeline</div>
+        <div class="legend-item">• Color = Activity</div>
+    </div>
+    
+    <div class="timeline">
+        <h3>YEAR</h3>
+        <div id="current-year">2025</div>
+    </div>
+    
+    <div class="hovered-project" id="hovered-project">
+        <h2 id="hover-name">Project</h2>
+        <div class="stat">
+            <span class="stat-label">Commits:</span>
+            <span class="stat-value" id="hover-commits">0</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Lines:</span>
+            <span class="stat-value" id="hover-lines">0</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Files:</span>
+            <span class="stat-value" id="hover-files">0</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Created:</span>
+            <span class="stat-value" id="hover-created">-</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Last Update:</span>
+            <span class="stat-value" id="hover-updated">-</span>
+        </div>
+    </div>
+
+    <script>
+        // Load data
+        const projectsData = [   {     "name": "casino-admin",     "commits": 945,     "firstDate": 1671721996,     "lastDate": 1729686468,     "files": 28135,     "lines": 5458231   },   {     "name": "casino-webcheck",     "commits": 20,     "firstDate": 1753088321,     "lastDate": 1757414247,     "files": 2,     "lines": 148   },   {     "name": "casino-sg-client",     "commits": 1113,     "firstDate": 1732708624,     "lastDate": 1759239069,     "files": 21696,     "lines": 3411558   },   {     "name": "buffalopay-admin-client",     "commits": 14,     "firstDate": 1759178939,     "lastDate": 1759399691,     "files": 15289,     "lines": 2773424   },   {     "name": "casino-sg-tg-service",     "commits": 10,     "firstDate": 1738046755,     "lastDate": 1740431433,     "files": 13789,     "lines": 1877087   },   {     "name": "casino-sg",     "commits": 3530,     "firstDate": 1689691361,     "lastDate": 1747393675,     "files": 34306,     "lines": 6007749   },   {     "name": "dash",     "commits": 16,     "firstDate": 1751894310,     "lastDate": 1751971890,     "files": 732,     "lines": 151652   },   {     "name": "casino-sg-bp-service2",     "commits": 332,     "firstDate": 1712222861,     "lastDate": 1734098555,     "files": 15392,     "lines": 2954336   },   {     "name": "casino-sg-bp-service",     "commits": 634,     "firstDate": 1712222861,     "lastDate": 1757966078,     "files": 18335,     "lines": 2989842   },   {     "name": "api-tools",     "commits": 2,     "firstDate": 1758270100,     "lastDate": 1758274268,     "files": 682,     "lines": 145188   },   {     "name": "casino-sg-loyalty-service",     "commits": 128,     "firstDate": 1737448749,     "lastDate": 1757415109,     "files": 19275,     "lines": 3598340   },   {     "name": "casino-sg-nest-core",     "commits": 145,     "firstDate": 1749558184,     "lastDate": 1752677063,     "files": 27413,     "lines": 4504496   },   {     "name": "casino-2wp-bp-service",     "commits": 5,     "firstDate": 1728563968,     "lastDate": 1729686566,     "files": 16680,     "lines": 3950004   },   {     "name": "casino-sg-notify-service",     "commits": 84,     "firstDate": 1729861875,     "lastDate": 1755267169,     "files": 21124,     "lines": 4698732   },   {     "name": "casino-cms",     "commits": 53,     "firstDate": 1708349875,     "lastDate": 1758883368,     "files": 42244,     "lines": 5446483   },   {     "name": "casino-sg-client2",     "commits": 79,     "firstDate": 1732708624,     "lastDate": 1739405285,     "files": 20306,     "lines": 3242368   },   {     "name": "casino-sg-client-core",     "commits": 241,     "firstDate": 1738933584,     "lastDate": 1759763550,     "files": 18389,     "lines": 3116958   },   {     "name": "tools2",     "commits": 20,     "firstDate": 1744307092,     "lastDate": 1745610778,     "files": 829,     "lines": 567564   },   {     "name": "sonarqube8.9-docker-compose",     "commits": 9,     "firstDate": 1642170155,     "lastDate": 1662986528,     "files": 26,     "lines": 36232   },   {     "name": "casino-sg-admin",     "commits": 2432,     "firstDate": 1689595021,     "lastDate": 1759238426,     "files": 31365,     "lines": 4647654   } ] ;
+        
+        const canvas = document.getElementById('canvas');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        camera.position.set(30, 20, 30);
+        
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+        scene.add(ambientLight);
+        
+        const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        mainLight.position.set(20, 30, 10);
+        scene.add(mainLight);
+        
+        // Timeline axis
+        const timelineLength = 60;
+        const axisGeometry = new THREE.BoxGeometry(timelineLength, 0.1, 0.1);
+        const axisMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+        const axis = new THREE.Mesh(axisGeometry, axisMaterial);
+        axis.position.set(0, 0, 0);
+        scene.add(axis);
+        
+        // Process data
+        const minDate = Math.min(...projectsData.map(p => p.firstDate));
+        const maxDate = Math.max(...projectsData.map(p => p.lastDate));
+        const maxCommits = Math.max(...projectsData.map(p => p.commits));
+        const maxLines = Math.max(...projectsData.map(p => p.lines));
+        
+        // Update stats
+        document.getElementById('total-projects').textContent = projectsData.length;
+        document.getElementById('total-commits').textContent = projectsData.reduce((s, p) => s + p.commits, 0).toLocaleString();
+        document.getElementById('total-lines').textContent = (projectsData.reduce((s, p) => s + p.lines, 0) / 1000000).toFixed(1) + 'M';
+        document.getElementById('active-projects').textContent = projectsData.filter(p => p.lastDate > Date.now()/1000 - 180*24*3600).length;
+        
+        // Create project nodes
+        const nodes = [];
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        
+        projectsData.forEach((proj, i) => {
+            // Position on timeline
+            const timePos = ((proj.firstDate - minDate) / (maxDate - minDate)) * timelineLength - timelineLength/2;
+            
+            // Size based on commits
+            const size = Math.max(0.5, (proj.commits / maxCommits) * 3);
+            
+            // Height based on code size
+            const height = Math.max(0.3, (proj.lines / maxLines) * 15);
+            
+            // Color based on activity (recent updates = brighter)
+            const daysSinceUpdate = (Date.now()/1000 - proj.lastDate) / (24 * 3600);
+            const activityHue = Math.max(0, 1 - daysSinceUpdate / 365); // Green if recent, red if old
+            const color = new THREE.Color().setHSL(activityHue * 0.3, 1, 0.5);
+            
+            const geometry = new THREE.CylinderGeometry(size, size, height, 8);
+            const material = new THREE.MeshStandardMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 0.4,
+                roughness: 0.4,
+                metalness: 0.6
+            });
+            
+            const cylinder = new THREE.Mesh(geometry, material);
+            cylinder.position.set(timePos, height/2, (i % 5 - 2) * 3);
+            cylinder.userData = {
+                project: proj,
+                baseColor: color,
+                baseEmissive: 0.4
+            };
+            scene.add(cylinder);
+            nodes.push(cylinder);
+            
+            // Add wireframe
+            const wireframeGeo = new THREE.EdgesGeometry(geometry);
+            const wireframeMat = new THREE.LineBasicMaterial({ color: 0x00ff88 });
+            const wireframe = new THREE.LineSegments(wireframeGeo, wireframeMat);
+            cylinder.add(wireframe);
+            
+            // Add text label
+            const canvas2d = document.createElement('canvas');
+            canvas2d.width = 1024;
+            canvas2d.height = 256;
+            const ctx = canvas2d.getContext('2d');
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, 1024, 256);
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 60px Courier New';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(proj.name, 512, 128);
+            
+            const texture = new THREE.CanvasTexture(canvas2d);
+            const spriteMaterial = new THREE.SpriteMaterial({ 
+                map: texture,
+                transparent: true
+            });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(size * 4, size, 1);
+            sprite.position.y = height/2 + size * 1.5;
+            cylinder.add(sprite);
+            
+            // Add year marker on timeline
+            const year = new Date(proj.firstDate * 1000).getFullYear();
+            const markerGeo = new THREE.SphereGeometry(0.2, 8, 8);
+            const markerMat = new THREE.MeshBasicMaterial({ color: 0xff3366 });
+            const marker = new THREE.Mesh(markerGeo, markerMat);
+            marker.position.set(timePos, -0.5, 0);
+            scene.add(marker);
+        });
+        
+        // Mouse interaction
+        let hoveredNode = null;
+        
+        canvas.addEventListener('mousemove', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodes);
+            
+            // Reset previous hover
+            if (hoveredNode) {
+                hoveredNode.material.emissiveIntensity = hoveredNode.userData.baseEmissive;
+            }
+            
+            if (intersects.length > 0) {
+                hoveredNode = intersects[0].object;
+                hoveredNode.material.emissiveIntensity = 0.8;
+                
+                const proj = hoveredNode.userData.project;
+                document.getElementById('hover-name').textContent = proj.name;
+                document.getElementById('hover-commits').textContent = proj.commits.toLocaleString();
+                document.getElementById('hover-lines').textContent = (proj.lines / 1000).toFixed(0) + 'K';
+                document.getElementById('hover-files').textContent = proj.files.toLocaleString();
+                document.getElementById('hover-created').textContent = new Date(proj.firstDate * 1000).toLocaleDateString();
+                document.getElementById('hover-updated').textContent = new Date(proj.lastDate * 1000).toLocaleDateString();
+                document.getElementById('hovered-project').style.display = 'block';
+            } else {
+                hoveredNode = null;
+                document.getElementById('hovered-project').style.display = 'none';
+            }
+        });
+        
+        // Animation
+        let time = 0;
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.01;
+            
+            // Rotate nodes slightly
+            nodes.forEach((node, i) => {
+                node.rotation.y += 0.005;
+            });
+            
+            // Update year display
+            const currentYear = 2022 + Math.floor((time % 10) / 10 * 4);
+            document.getElementById('current-year').textContent = currentYear;
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        animate();
+    </script>
+</body>
+</html>
+
