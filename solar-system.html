@@ -251,10 +251,10 @@
         camera.position.set(0, 100, 250);
         camera.lookAt(0, 0, 0);
 
-        const sunLight = new THREE.PointLight(0xffaa00, 2, 2000);
+        const sunLight = new THREE.PointLight(0xffffff, 1.5, 2000);
         scene.add(sunLight);
 
-        const ambientLight = new THREE.AmbientLight(0x222222);
+        const ambientLight = new THREE.AmbientLight(0x444444);
         scene.add(ambientLight);
 
         // Реальные звёзды из каталога ярких звёзд (расстояние в св.годах, координаты)
@@ -476,8 +476,6 @@
             const texture = createPlanetTexture(data.baseColor, data.detailColor);
             const planetMaterial = new THREE.MeshStandardMaterial({ 
                 map: texture,
-                emissive: data.baseColor,
-                emissiveIntensity: 0.05,
                 roughness: 0.8,
                 metalness: 0.1
             });
@@ -491,7 +489,7 @@
             if (data.rings) {
                 const ringGeometry = new THREE.RingGeometry(data.size * 1.5, data.size * 2.5, 64);
                 const ringMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xfad5a5,
+                    color: 0xd8c8b0,
                     side: THREE.DoubleSide,
                     transparent: true,
                     opacity: 0.6
@@ -512,10 +510,8 @@
                     const baseMoonColor = data.moonColor || 0x888888;
                     const moonTexture = createPlanetTexture(baseMoonColor, baseMoonColor - 0x202020);
                     
-                    const moonMaterial = new THREE.MeshStandardMaterial({ 
+                    const moonMaterial = new THREE.MeshStandardMaterial({
                         map: moonTexture,
-                        emissive: baseMoonColor,
-                        emissiveIntensity: 0.02,
                         roughness: 0.95,
                         metalness: 0.05
                     });
