@@ -237,7 +237,7 @@
             },
             { 
                 name: 'Cutting Plywood',
-                desc: 'Circular saw cutting 1525×1525mm sheets',
+                desc: 'Circular saw cutting 1 shelf 2000×500mm',
                 duration: 120,
                 action: cutPlywood_stage
             },
@@ -255,7 +255,7 @@
             },
             { 
                 name: 'Final Assembly',
-                desc: 'Installing shelves on frame',
+                desc: 'Installing shelf on frame',
                 duration: 100,
                 action: finalAssembly_stage
             }
@@ -407,12 +407,10 @@
                 createParticle(originalPlywood.position.x, originalPlywood.position.y, originalPlywood.position.z, 0xd2b48c, 0.02);
             }
             
-            const cuts = [0.33, 0.66];
-            cuts.forEach((cutPoint, i) => {
-                if (progress >= cutPoint && cutPlywood.length <= i) {
-                    createCutPlywood(i);
-                }
-            });
+            // Only 1 shelf needed
+            if (progress >= 0.5 && cutPlywood.length === 0) {
+                createCutPlywood(0);
+            }
             
             if (progress >= 1) {
                 scene.remove(originalPlywood);
@@ -421,6 +419,7 @@
         }
         
         function createCutPlywood(index) {
+            // Plywood sheets lie flat: width x thickness x depth
             const geometry = new THREE.BoxGeometry(shelfWidth, 0.018, shelfDepth);
             const material = new THREE.MeshStandardMaterial({ 
                 color: plywoodColor,
@@ -430,6 +429,7 @@
             mesh.position.set(1.5, 0.3, 0.5 + index * 0.3);
             mesh.castShadow = true;
             mesh.userData.cutPiece = true;
+            mesh.userData.shelfIndex = index;
             scene.add(mesh);
             cutPlywood.push(mesh);
         }
@@ -494,18 +494,18 @@
         function finalAssembly_stage() {
             const progress = stageProgress / stages[4].duration;
             
-            // Install shelves - they lie flat horizontally centered in the frame
-            const shelfPositions = [
-                { x: 0, y: shelfHeight / 3, z: 0 },       // Lower shelf
-                { x: 0, y: shelfHeight * 2 / 3, z: 0 }    // Upper shelf
-            ];
+            // Install shelves - they lie flat horizontally at middle height
+            // Y position matches the middle supports at shelfHeight/2
+            const shelfY = shelfHeight / 2 + 0.009; // Just above the middle support beam
             
             cutPlywood.forEach((shelf, i) => {
-                if (i < shelfPositions.length) {
-                    const target = shelfPositions[i];
-                    shelf.position.x += (target.x - shelf.position.x) * 0.03 * speed;
-                    shelf.position.y += (target.y - shelf.position.y) * 0.03 * speed;
-                    shelf.position.z += (target.z - shelf.position.z) * 0.03 * speed;
+                // Only 1 shelf in the middle
+                if (i === 0) {
+                    shelf.position.x += (0 - shelf.position.x) * 0.03 * speed;
+                    shelf.position.y += (shelfY - shelf.position.y) * 0.03 * speed;
+                    shelf.position.z += (0 - shelf.position.z) * 0.03 * speed;
+                    
+                    // Keep horizontal (no rotation)
                     shelf.rotation.x += (0 - shelf.rotation.x) * 0.03 * speed;
                     shelf.rotation.y += (0 - shelf.rotation.y) * 0.03 * speed;
                     shelf.rotation.z += (0 - shelf.rotation.z) * 0.03 * speed;
