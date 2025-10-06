@@ -11,8 +11,37 @@
             overflow: hidden;
             background: #000;
             font-family: 'Courier New', monospace;
+            cursor: crosshair;
         }
         #canvas { display: block; }
+        
+        .crosshair {
+            position: fixed;
+            width: 30px;
+            height: 30px;
+            border: 2px solid #ff3366;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 100;
+            box-shadow: 0 0 10px #ff3366;
+        }
+        .crosshair::before, .crosshair::after {
+            content: '';
+            position: absolute;
+            background: #ff3366;
+        }
+        .crosshair::before {
+            width: 2px;
+            height: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .crosshair::after {
+            height: 2px;
+            width: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
         
         .hud {
             position: fixed;
@@ -142,6 +171,7 @@
 </head>
 <body>
     <canvas id="canvas"></canvas>
+    <div class="crosshair"></div>
     
     <div class="hud">
         <h2>DEFENSE</h2>
@@ -216,30 +246,66 @@
         const gridHelper = new THREE.GridHelper(60, 30, 0x00ff88, 0x003322);
         scene.add(gridHelper);
         
-        // Tower in center
-        const towerGeometry = new THREE.CylinderGeometry(1, 1.5, 3, 6);
-        const towerMaterial = new THREE.MeshStandardMaterial({
-            color: 0x00ff88,
+        // Brutal tower base
+        const baseGeometry = new THREE.CylinderGeometry(2, 2.5, 1, 8);
+        const baseMaterial = new THREE.MeshStandardMaterial({
+            color: 0x222222,
+            metalness: 0.9,
+            roughness: 0.3
+        });
+        const towerBase = new THREE.Mesh(baseGeometry, baseMaterial);
+        towerBase.position.y = 0.5;
+        scene.add(towerBase);
+        
+        // Main tower body - octagonal brutal design
+        const bodyGeometry = new THREE.CylinderGeometry(1.5, 1.8, 2.5, 8);
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: 0x333333,
             emissive: 0x00ff88,
-            emissiveIntensity: 0.5,
+            emissiveIntensity: 0.3,
+            metalness: 0.9,
+            roughness: 0.2
+        });
+        const tower = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        tower.position.y = 2.25;
+        scene.add(tower);
+        
+        // Gun platform - rotating part
+        const platformGeometry = new THREE.CylinderGeometry(1.2, 1.2, 0.4, 8);
+        const platformMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff3366,
+            emissive: 0xff3366,
+            emissiveIntensity: 0.6,
             metalness: 0.8,
             roughness: 0.2
         });
-        const tower = new THREE.Mesh(towerGeometry, towerMaterial);
-        tower.position.y = 1.5;
-        scene.add(tower);
+        const gunPlatform = new THREE.Mesh(platformGeometry, platformMaterial);
+        gunPlatform.position.y = 3.7;
+        scene.add(gunPlatform);
         
-        // Tower gun
-        const gunGeometry = new THREE.CylinderGeometry(0.2, 0.3, 2, 8);
-        const gunMaterial = new THREE.MeshStandardMaterial({
-            color: 0xff3366,
-            emissive: 0xff3366,
-            emissiveIntensity: 0.4
+        // Multiple brutal gun barrels
+        const guns = [];
+        const gunPositions = [
+            { x: 0.5, z: 0 },
+            { x: -0.5, z: 0 },
+            { x: 0, z: 0.5 },
+            { x: 0, z: -0.5 }
+        ];
+        
+        gunPositions.forEach(pos => {
+            const gunGeometry = new THREE.BoxGeometry(0.25, 0.25, 2.5);
+            const gunMaterial = new THREE.MeshStandardMaterial({
+                color: 0x666666,
+                emissive: 0xff3366,
+                emissiveIntensity: 0.4,
+                metalness: 0.9,
+                roughness: 0.1
+            });
+            const gun = new THREE.Mesh(gunGeometry, gunMaterial);
+            gun.position.set(pos.x, 0, pos.z + 1.25);
+            gunPlatform.add(gun);
+            guns.push(gun);
         });
-        const gun = new THREE.Mesh(gunGeometry, gunMaterial);
-        gun.rotation.z = Math.PI / 2;
-        gun.position.y = 2;
-        tower.add(gun);
         
         // Game state
         let wave = 1;
@@ -248,7 +314,7 @@
         let towerLevel = 1;
         let towerHP = 100;
         let towerDamage = 10;
-        let fireRate = 5;
+        let fireRate = 10; // Increased for more dense fire
         let missileReady = true;
         let gameRunning = true;
         
@@ -256,6 +322,25 @@
         const bullets = [];
         const missiles = [];
         const particles = [];
+        
+        // Mouse tracking for gun control
+        const mouse = new THREE.Vector2();
+        const raycaster = new THREE.Raycaster();
+        const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        let mouseWorldPos = new THREE.Vector3(0, 0, 10);
+        
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            raycaster.ray.intersectPlane(groundPlane, mouseWorldPos);
+            
+            // Update crosshair position
+            const crosshair = document.querySelector('.crosshair');
+            crosshair.style.left = event.clientX - 15 + 'px';
+            crosshair.style.top = event.clientY - 15 + 'px';
+        });
         
         // Spawn enemy
         function spawnEnemy() {
@@ -304,28 +389,48 @@
             }
         }
         
-        // Shoot bullet
+        // Shoot bullet from specific gun barrel
+        let currentGunIndex = 0;
         let lastShot = 0;
-        function shootBullet(targetPos) {
+        function shootBullet() {
             const now = Date.now();
-            if (now - lastShot < 1000 / fireRate) return;
+            const shootDelay = 1000 / (fireRate * 4); // 4 guns = 4x fire rate
+            if (now - lastShot < shootDelay) return;
             lastShot = now;
             
-            const bulletGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+            const currentGun = guns[currentGunIndex];
+            currentGunIndex = (currentGunIndex + 1) % guns.length;
+            
+            const bulletGeometry = new THREE.SphereGeometry(0.2, 8, 8);
             const bulletMaterial = new THREE.MeshBasicMaterial({
                 color: 0xffff00,
                 emissive: 0xffff00,
                 emissiveIntensity: 1
             });
             const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
-            bullet.position.copy(gun.getWorldPosition(new THREE.Vector3()));
+            bullet.position.copy(currentGun.getWorldPosition(new THREE.Vector3()));
             scene.add(bullet);
             
-            const direction = targetPos.clone().sub(bullet.position).normalize();
+            // Shoot towards mouse position
+            const direction = mouseWorldPos.clone().sub(bullet.position);
+            direction.y = 0;
+            direction.normalize();
+            
+            // Add muzzle flash
+            const flashGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+            const flashMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff6600,
+                transparent: true,
+                opacity: 0.8
+            });
+            const flash = new THREE.Mesh(flashGeometry, flashMaterial);
+            flash.position.copy(bullet.position);
+            scene.add(flash);
+            setTimeout(() => scene.remove(flash), 50);
             
             bullets.push({
                 mesh: bullet,
-                velocity: direction.multiplyScalar(0.5),
+                velocity: direction.multiplyScalar(0.8),
                 damage: towerDamage
             });
         }
@@ -394,13 +499,18 @@
         function upgradeTower() {
             towerLevel++;
             towerDamage += 5;
-            fireRate += 0.5;
+            fireRate += 1; // Faster rate increase for more intense fire
             
-            tower.scale.multiplyScalar(1.05);
-            towerMaterial.emissiveIntensity = Math.min(1, 0.5 + towerLevel * 0.05);
+            // Visual upgrade - scale guns and enhance glow
+            guns.forEach(gun => {
+                gun.scale.multiplyScalar(1.03);
+                gun.material.emissiveIntensity = Math.min(1, 0.4 + towerLevel * 0.05);
+            });
+            platformMaterial.emissiveIntensity = Math.min(1.5, 0.6 + towerLevel * 0.1);
+            bodyMaterial.emissiveIntensity = Math.min(0.8, 0.3 + towerLevel * 0.05);
             
             // Visual upgrade effect
-            createExplosion(0, 1.5, 0, 0x00ff88, 50);
+            createExplosion(0, 3.7, 0, 0x00ff88, 50);
             
             updateUI();
         }
@@ -411,7 +521,7 @@
             document.getElementById('enemies').textContent = enemies.length;
             document.getElementById('tower-level').textContent = towerLevel;
             document.getElementById('tower-damage').textContent = towerDamage;
-            document.getElementById('tower-rate').textContent = fireRate.toFixed(1) + '/s';
+            document.getElementById('tower-rate').textContent = (fireRate * 4).toFixed(0) + '/s'; // 4 guns
         }
         
         function gameOver() {
@@ -440,11 +550,15 @@
             towerLevel = 1;
             towerHP = 100;
             towerDamage = 10;
-            fireRate = 5;
+            fireRate = 10;
             gameRunning = true;
             
-            tower.scale.set(1, 1, 1);
-            towerMaterial.emissiveIntensity = 0.5;
+            guns.forEach(gun => {
+                gun.scale.set(1, 1, 1);
+                gun.material.emissiveIntensity = 0.4;
+            });
+            platformMaterial.emissiveIntensity = 0.6;
+            bodyMaterial.emissiveIntensity = 0.3;
             
             document.getElementById('game-over').style.display = 'none';
             updateUI();
@@ -468,8 +582,9 @@
             waveTimer += 0.016;
             upgradeTimer += 0.016;
             
-            // Tower rotation
-            tower.rotation.y += 0.02;
+            // Gun platform aims at mouse
+            const targetAngle = Math.atan2(mouseWorldPos.x, mouseWorldPos.z);
+            gunPlatform.rotation.y = targetAngle;
             
             // Auto upgrade every 20 seconds
             if (upgradeTimer > 20) {
@@ -484,22 +599,8 @@
                 spawnWave();
             }
             
-            // Shoot at nearest enemy
-            if (enemies.length > 0) {
-                let nearest = enemies[0];
-                let minDist = nearest.mesh.position.distanceTo(tower.position);
-                
-                enemies.forEach(e => {
-                    const dist = e.mesh.position.distanceTo(tower.position);
-                    if (dist < minDist) {
-                        minDist = dist;
-                        nearest = e;
-                    }
-                });
-                
-                gun.lookAt(nearest.mesh.position);
-                shootBullet(nearest.mesh.position);
-            }
+            // Continuous shooting towards mouse
+            shootBullet();
             
             // Launch missile periodically
             if (Date.now() - lastMissile >= 5000 && enemies.length > 3) {
