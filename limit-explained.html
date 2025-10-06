@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding Limits - Step by Step</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            background: #0a0e27;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+        }
+
+        #webgl-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .title {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 42px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 20px #00ffff;
+            letter-spacing: 4px;
+            z-index: 10;
+        }
+
+        .main-box {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 20, 40, 0.95);
+            border: 3px solid #00ffff;
+            padding: 35px 50px;
+            border-radius: 12px;
+            z-index: 10;
+            min-width: 900px;
+            max-width: 1100px;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.4);
+        }
+
+        .step-indicator {
+            font-size: 14px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .main-text {
+            font-size: 26px;
+            color: #fff;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        .highlight {
+            color: #ff00ff;
+            font-weight: bold;
+        }
+
+        .number {
+            color: #00ffff;
+            font-weight: bold;
+            font-size: 28px;
+        }
+
+        .sub-text {
+            font-size: 16px;
+            color: #aaa;
+            line-height: 1.6;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .values-display {
+            position: absolute;
+            top: 100px;
+            right: 40px;
+            background: rgba(0, 20, 40, 0.9);
+            border: 2px solid #ff00ff;
+            padding: 20px 25px;
+            border-radius: 8px;
+            z-index: 10;
+            min-width: 280px;
+        }
+
+        .values-title {
+            font-size: 14px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .value-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 4px;
+        }
+
+        .value-label {
+            font-size: 16px;
+            color: #ccc;
+        }
+
+        .value-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00ffff;
+        }
+
+        .arrow-indicator {
+            font-size: 24px;
+            color: #ff00ff;
+            text-align: center;
+            margin: 8px 0;
+        }
+
+        .formula-box {
+            background: rgba(0, 255, 255, 0.1);
+            border: 2px solid #00ffff;
+            padding: 15px 20px;
+            border-radius: 6px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .formula {
+            font-size: 24px;
+            color: #00ffff;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+        }
+
+        .corner {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border: 2px solid #ff00ff;
+            z-index: 5;
+            opacity: 0.3;
+        }
+
+        .corner-tl { top: 15px; left: 15px; border-right: none; border-bottom: none; }
+        .corner-tr { top: 15px; right: 15px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: 15px; left: 15px; border-right: none; border-top: none; }
+        .corner-br { bottom: 15px; right: 15px; border-left: none; border-top: none; }
+    </style>
+</head>
+<body>
+    <canvas id="webgl-canvas"></canvas>
+
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <div class="title">UNDERSTANDING LIMITS</div>
+
+    <div class="values-display" id="values-panel">
+        <div class="values-title">WATCHING THE NUMBERS</div>
+        <div class="value-row">
+            <span class="value-label">x =</span>
+            <span class="value-number" id="x-value">3.0</span>
+        </div>
+        <div class="arrow-indicator">↓</div>
+        <div class="value-row">
+            <span class="value-label">f(x) = 2x =</span>
+            <span class="value-number" id="fx-value">6.0</span>
+        </div>
+    </div>
+
+    <div class="main-box">
+        <div class="step-indicator" id="step-num">STEP 1 of 15</div>
+        <div class="main-text" id="main-text">
+            Let's say we have a simple function: <span class="highlight">f(x) = 2x</span>
+        </div>
+        <div class="sub-text" id="sub-text">
+            Just doubling the number. Easy, right? Watch the graph appear...
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('webgl-canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        
+        function resizeRenderer() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        resizeRenderer();
+        window.addEventListener('resize', resizeRenderer);
+        
+        camera.position.set(0, 8, 20);
+        camera.lookAt(0, 0, 0);
+
+        const ambientLight = new THREE.AmbientLight(0x404040, 2);
+        scene.add(ambientLight);
+
+        const gridHelper = new THREE.GridHelper(24, 24, 0x00ffff, 0x00ffff);
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.1;
+        gridHelper.position.y = -5;
+        scene.add(gridHelper);
+
+        // График f(x) = 2x
+        const functionPoints = [];
+        for (let x = -5; x <= 5; x += 0.1) {
+            functionPoints.push(new THREE.Vector3(x * 2, x * 2, 0));
+        }
+        const functionGeometry = new THREE.BufferGeometry().setFromPoints(functionPoints);
+        const functionMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x00ffff, 
+            linewidth: 3,
+            transparent: true,
+            opacity: 0
+        });
+        const functionCurve = new THREE.Line(functionGeometry, functionMaterial);
+        scene.add(functionCurve);
+
+        // Целевая точка (a = 3, L = 6)
+        const targetPoint = new THREE.Mesh(
+            new THREE.SphereGeometry(0.3, 16, 16),
+            new THREE.MeshBasicMaterial({ 
+                color: 0xff00ff,
+                transparent: true,
+                opacity: 0
+            })
+        );
+        targetPoint.position.set(6, 6, 0);
+        scene.add(targetPoint);
+
+        // Движущаяся точка
+        const movingPoint = new THREE.Mesh(
+            new THREE.SphereGeometry(0.25, 16, 16),
+            new THREE.MeshBasicMaterial({ 
+                color: 0x00ff00,
+                emissive: 0x00ff00,
+                emissiveIntensity: 0.5,
+                transparent: true,
+                opacity: 0
+            })
+        );
+        scene.add(movingPoint);
+
+        // Эпсилон полоса
+        const epsilonBand = new THREE.Mesh(
+            new THREE.PlaneGeometry(24, 2),
+            new THREE.MeshBasicMaterial({
+                color: 0xff00ff,
+                transparent: true,
+                opacity: 0,
+                side: THREE.DoubleSide
+            })
+        );
+        epsilonBand.position.set(0, 6, -0.5);
+        scene.add(epsilonBand);
+
+        const epsilonLines = new THREE.LineSegments(
+            new THREE.EdgesGeometry(epsilonBand.geometry),
+            new THREE.LineBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0 })
+        );
+        epsilonBand.add(epsilonLines);
+
+        // Дельта полоса
+        const deltaBand = new THREE.Mesh(
+            new THREE.PlaneGeometry(2, 20),
+            new THREE.MeshBasicMaterial({
+                color: 0x00ff00,
+                transparent: true,
+                opacity: 0,
+                side: THREE.DoubleSide
+            })
+        );
+        deltaBand.position.set(6, 0, -1);
+        scene.add(deltaBand);
+
+        const deltaLines = new THREE.LineSegments(
+            new THREE.EdgesGeometry(deltaBand.geometry),
+            new THREE.LineBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0 })
+        );
+        deltaBand.add(deltaLines);
+
+        // Сценарий обучения
+        const steps = [
+            {
+                main: 'Let\'s say we have a simple function: <span class="highlight">f(x) = 2x</span>',
+                sub: 'Just doubling the number. Easy, right? Watch the graph appear...',
+                action: () => {
+                    animateOpacity(functionMaterial, 1, 1000);
+                }
+            },
+            {
+                main: 'Let\'s pick a point. How about <span class="highlight">x = 3</span>?',
+                sub: 'If x = 3, then f(x) = 2 × 3 = 6. See the pink dot? That\'s our point (3, 6).',
+                action: () => {
+                    animateOpacity(targetPoint.material, 0.8, 800);
+                    updateValues(3, 6);
+                }
+            },
+            {
+                main: 'Now the KEY QUESTION: What happens when x gets <span class="highlight">close to 3</span>?',
+                sub: 'Not AT 3, but NEAR 3. Let\'s try x = 3.5 first...',
+                action: () => {
+                    animateOpacity(movingPoint.material, 1, 500);
+                    animatePoint(3.5, 2000);
+                }
+            },
+            {
+                main: 'When <span class="number">x = 3.5</span>, we get <span class="number">f(x) = 7.0</span>',
+                sub: 'Notice: x moved a little (from 3 to 3.5), and f(x) also moved a little (from 6 to 7). They moved TOGETHER.',
+                action: () => {
+                    updateValues(3.5, 7);
+                }
+            },
+            {
+                main: 'Let\'s get CLOSER. Try <span class="number">x = 3.1</span>',
+                sub: 'Now f(x) = 6.2. See? Closer to 3 means closer to 6! The green point moves toward the pink one.',
+                action: () => {
+                    animatePoint(3.1, 2000);
+                }
+            },
+            {
+                main: 'When <span class="number">x = 3.1</span>, we get <span class="number">f(x) = 6.2</span>',
+                sub: 'Pattern emerging: The closer x gets to 3, the closer f(x) gets to 6. Let\'s try even closer!',
+                action: () => {
+                    updateValues(3.1, 6.2);
+                }
+            },
+            {
+                main: 'Even closer: <span class="number">x = 3.01</span>',
+                sub: 'Now f(x) = 6.02. The distance is shrinking! Can you feel the "approaching"?',
+                action: () => {
+                    animatePoint(3.01, 2000);
+                }
+            },
+            {
+                main: 'When <span class="number">x = 3.01</span>, we get <span class="number">f(x) = 6.02</span>',
+                sub: 'Just 0.02 away from 6! The pattern is clear: we can get as close as we want to 6 by getting close enough to 3.',
+                action: () => {
+                    updateValues(3.01, 6.02);
+                }
+            },
+            {
+                main: 'This is the intuition: <span class="highlight">f(x) approaches 6 as x approaches 3</span>',
+                sub: 'Mathematicians write this as: lim(x→3) 2x = 6. But HOW do we prove this rigorously? Keep watching...',
+                action: () => {
+                    animatePoint(3.001, 2000);
+                    updateValues(3.001, 6.002);
+                }
+            },
+            {
+                main: 'Imagine someone challenges you: <span class="highlight">"Get within 0.5 of 6!"</span>',
+                sub: 'That means f(x) must be between 5.5 and 6.5. This challenge distance is called epsilon (ε). Let\'s visualize it!',
+                action: () => {
+                    updateEpsilonBand(1);
+                    animateOpacity(epsilonBand.material, 0.15, 800);
+                    animateOpacity(epsilonLines.material, 0.6, 800);
+                }
+            },
+            {
+                main: 'The PINK ZONE is our <span class="highlight">target zone (epsilon = 0.5)</span>',
+                sub: 'We need f(x) to land in this zone. Question: How close must x be to 3 to guarantee this?',
+                action: () => {
+                    // Ничего
+                }
+            },
+            {
+                main: 'Answer: If x is within <span class="highlight">0.25 of 3</span>, f(x) will be within 0.5 of 6!',
+                sub: 'This safe distance for x is called delta (δ). Let\'s show the GREEN ZONE - if x is in here, f(x) is guaranteed to be in the pink zone!',
+                action: () => {
+                    updateDeltaBand(0.5);
+                    animateOpacity(deltaBand.material, 0.15, 800);
+                    animateOpacity(deltaLines.material, 0.6, 800);
+                }
+            },
+            {
+                main: 'See the connection? <span class="highlight">Green zone (δ) → Pink zone (ε)</span>',
+                sub: 'If x stays in the green vertical stripe, then f(x) MUST stay in the pink horizontal stripe. This is the guarantee!',
+                action: () => {
+                    animatePoint(3.2, 1500);
+                    setTimeout(() => animatePoint(2.85, 1500), 2000);
+                    setTimeout(() => animatePoint(3.15, 1500), 4000);
+                }
+            },
+            {
+                main: 'Make the challenge HARDER: <span class="highlight">ε = 0.1</span> (tiny target!)',
+                sub: 'Now f(x) must be between 5.9 and 6.1. Watch the zones shrink! Can we still find a safe δ?',
+                action: () => {
+                    updateEpsilonBand(0.2);
+                    updateDeltaBand(0.1);
+                }
+            },
+            {
+                main: 'YES! We can pick <span class="highlight">δ = 0.05</span> - even smaller!',
+                sub: 'THE KEY INSIGHT: For ANY challenge (ε), no matter how tiny, we can find a response (δ) that works. This is the essence of limits!<br><br><div class="formula-box"><div class="formula">∀ε > 0, ∃δ > 0 : |x-3| < δ ⟹ |f(x)-6| < ε</div></div>',
+                action: () => {
+                    animatePoint(3.03, 1500);
+                    setTimeout(() => animatePoint(2.97, 1500), 2000);
+                }
+            }
+        ];
+
+        let currentStep = 0;
+        let stepTimer = 0;
+        const stepDuration = 7000;
+
+        function animateOpacity(material, target, duration) {
+            const start = material.opacity;
+            const startTime = Date.now();
+            
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                material.opacity = start + (target - start) * progress;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+            update();
+        }
+
+        function animatePoint(x, duration) {
+            const fx = 2 * x;
+            const startX = movingPoint.position.x;
+            const startY = movingPoint.position.y;
+            const targetX = x * 2;
+            const targetY = fx;
+            const startTime = Date.now();
+            
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
+                
+                movingPoint.position.x = startX + (targetX - startX) * eased;
+                movingPoint.position.y = startY + (targetY - startY) * eased;
+                
+                updateValues(
+                    startX / 2 + (x - startX / 2) * eased,
+                    startY + (fx - startY) * eased
+                );
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+            update();
+        }
+
+        function updateValues(x, fx) {
+            document.getElementById('x-value').textContent = x.toFixed(3);
+            document.getElementById('fx-value').textContent = fx.toFixed(3);
+        }
+
+        function updateEpsilonBand(eps) {
+            epsilonBand.geometry.dispose();
+            epsilonBand.geometry = new THREE.PlaneGeometry(24, eps * 2);
+            epsilonLines.geometry.dispose();
+            epsilonLines.geometry = new THREE.EdgesGeometry(epsilonBand.geometry);
+        }
+
+        function updateDeltaBand(delta) {
+            deltaBand.geometry.dispose();
+            deltaBand.geometry = new THREE.PlaneGeometry(delta * 2, 20);
+            deltaLines.geometry.dispose();
+            deltaLines.geometry = new THREE.EdgesGeometry(deltaBand.geometry);
+        }
+
+        function executeStep(index) {
+            if (index >= steps.length) {
+                setTimeout(() => {
+                    currentStep = 0;
+                    functionMaterial.opacity = 0;
+                    targetPoint.material.opacity = 0;
+                    movingPoint.material.opacity = 0;
+                    epsilonBand.material.opacity = 0;
+                    epsilonLines.material.opacity = 0;
+                    deltaBand.material.opacity = 0;
+                    deltaLines.material.opacity = 0;
+                    executeStep(0);
+                }, 3000);
+                return;
+            }
+
+            const step = steps[index];
+            document.getElementById('step-num').textContent = `STEP ${index + 1} of ${steps.length}`;
+            document.getElementById('main-text').innerHTML = step.main;
+            document.getElementById('sub-text').innerHTML = step.sub;
+            step.action();
+        }
+
+        setTimeout(() => executeStep(0), 1000);
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            stepTimer += 16;
+            if (stepTimer >= stepDuration) {
+                stepTimer = 0;
+                currentStep++;
+                executeStep(currentStep);
+            }
+            
+            targetPoint.rotation.y += 0.02;
+            movingPoint.rotation.y += 0.03;
+            
+            const pulse = 1 + Math.sin(Date.now() * 0.002) * 0.1;
+            targetPoint.scale.set(pulse, pulse, pulse);
+            
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+    </script>
+</body>
+</html>
+
