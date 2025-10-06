@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building Construction Algorithm</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            background: #0a0e27;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+        }
+
+        #webgl-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .title {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 48px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 20px #00ffff, 2px 2px 0 #ff00ff;
+            letter-spacing: 4px;
+            z-index: 10;
+        }
+
+        .step-info {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 20, 40, 0.9);
+            border: 2px solid #00ffff;
+            padding: 30px 50px;
+            border-radius: 10px;
+            z-index: 10;
+            min-width: 600px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+        }
+
+        .step-number {
+            font-size: 16px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .step-title {
+            font-size: 28px;
+            color: #00ffff;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .step-description {
+            font-size: 16px;
+            color: #aaa;
+            line-height: 1.6;
+        }
+
+        .progress-bar {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 500px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            width: 0;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px #00ffff;
+        }
+
+        .corner {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 2px solid #ff00ff;
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        .corner-tl { top: 30px; left: 30px; border-right: none; border-bottom: none; }
+        .corner-tr { top: 30px; right: 30px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: 30px; left: 30px; border-right: none; border-top: none; }
+        .corner-br { bottom: 30px; right: 30px; border-left: none; border-top: none; }
+
+        .metrics {
+            position: absolute;
+            top: 120px;
+            right: 50px;
+            z-index: 10;
+        }
+
+        .metric {
+            background: rgba(255, 0, 255, 0.1);
+            border-left: 3px solid #ff00ff;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            min-width: 200px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            font-size: 20px;
+            color: #ff00ff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="webgl-canvas"></canvas>
+
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <div class="title">CONSTRUCTION ALGORITHM</div>
+
+    <div class="step-info">
+        <div class="step-number" id="step-number">Phase 1 of 6</div>
+        <div class="step-title" id="step-title">Foundation</div>
+        <div class="step-description" id="step-description">Building foundation structure...</div>
+    </div>
+
+    <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+    </div>
+
+    <div class="metrics">
+        <div class="metric">
+            <div class="metric-label">Blocks Placed</div>
+            <div class="metric-value" id="blocks-count">0</div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Height</div>
+            <div class="metric-value" id="height-value">0m</div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Stability</div>
+            <div class="metric-value" id="stability-value">100%</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('webgl-canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        
+        function resizeRenderer() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        resizeRenderer();
+        window.addEventListener('resize', resizeRenderer);
+        
+        camera.position.set(15, 12, 15);
+        camera.lookAt(0, 3, 0);
+
+        // Освещение
+        const ambientLight = new THREE.AmbientLight(0x404040, 1);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(10, 20, 10);
+        scene.add(directionalLight);
+
+        // Земля/платформа
+        const groundGeometry = new THREE.PlaneGeometry(30, 30);
+        const groundMaterial = new THREE.MeshBasicMaterial({
+            color: 0x1a1a2e,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.3
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        // Сетка
+        const gridHelper = new THREE.GridHelper(30, 30, 0x00ffff, 0x00ffff);
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.2;
+        scene.add(gridHelper);
+
+        // Частицы
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 800;
+        const positions = new Float32Array(particlesCount * 3);
+        
+        for(let i = 0; i < particlesCount * 3; i++) {
+            positions[i] = (Math.random() - 0.5) * 40;
+        }
+        
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const particlesMaterial = new THREE.PointsMaterial({
+            color: 0x00ffff,
+            size: 0.08,
+            transparent: true,
+            opacity: 0.4,
+            blending: THREE.AdditiveBlending
+        });
+        
+        const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particles);
+
+        // Массив блоков здания
+        const building = [];
+        let currentStep = 0;
+        let blockCounter = 0;
+
+        const steps = [
+            {
+                title: "Foundation",
+                description: "Laying foundation blocks - base structural layer with reinforced corners",
+                blocks: [
+                    // Фундамент 5x5
+                    ...Array(5).fill().map((_, x) => 
+                        Array(5).fill().map((_, z) => ({x: x-2, y: 0, z: z-2, color: 0x00ffff}))
+                    ).flat()
+                ]
+            },
+            {
+                title: "Ground Floor Walls",
+                description: "Constructing perimeter walls - establishing vertical structure integrity",
+                blocks: [
+                    // Стены первого этажа (периметр)
+                    ...Array(5).fill().map((_, i) => [{x: i-2, y: 1, z: -2, color: 0xff00ff}, {x: i-2, y: 1, z: 2, color: 0xff00ff}]).flat(),
+                    ...Array(3).fill().map((_, i) => [{x: -2, y: 1, z: i-1, color: 0xff00ff}, {x: 2, y: 1, z: i-1, color: 0xff00ff}]).flat(),
+                ]
+            },
+            {
+                title: "First Floor Structure",
+                description: "Installing floor platform - load-bearing structure with central support beam",
+                blocks: [
+                    // Перекрытие первого этажа
+                    ...Array(5).fill().map((_, x) => 
+                        Array(5).fill().map((_, z) => ({x: x-2, y: 2, z: z-2, color: 0x00ff00}))
+                    ).flat()
+                ]
+            },
+            {
+                title: "Second Floor Walls",
+                description: "Building upper level walls - extended vertical space with window openings",
+                blocks: [
+                    // Стены второго этажа
+                    ...Array(5).fill().map((_, i) => [{x: i-2, y: 3, z: -2, color: 0xff6600}, {x: i-2, y: 3, z: 2, color: 0xff6600}]).flat(),
+                    ...Array(3).fill().map((_, i) => [{x: -2, y: 3, z: i-1, color: 0xff6600}, {x: 2, y: 3, z: i-1, color: 0xff6600}]).flat(),
+                ]
+            },
+            {
+                title: "Roof Platform",
+                description: "Constructing roof structure - weather protection layer with drainage system",
+                blocks: [
+                    // Крыша
+                    ...Array(5).fill().map((_, x) => 
+                        Array(5).fill().map((_, z) => ({x: x-2, y: 4, z: z-2, color: 0xffff00}))
+                    ).flat()
+                ]
+            },
+            {
+                title: "Antenna Array",
+                description: "Installing communication array - neural network uplink and sensor modules",
+                blocks: [
+                    // Антенны
+                    {x: 0, y: 5, z: 0, color: 0xff0000},
+                    {x: -1, y: 6, z: -1, color: 0xff0000},
+                    {x: 1, y: 6, z: -1, color: 0xff0000},
+                    {x: 0, y: 7, z: 0, color: 0xff0000},
+                ]
+            }
+        ];
+
+        function createBlock(x, y, z, color) {
+            const geometry = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+            const material = new THREE.MeshLambertMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 0.3,
+                transparent: true,
+                opacity: 0
+            });
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(x, y, z);
+            
+            // Добавляем wireframe обводку
+            const edges = new THREE.EdgesGeometry(geometry);
+            const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0
+            });
+            const wireframe = new THREE.LineSegments(edges, lineMaterial);
+            cube.add(wireframe);
+            
+            scene.add(cube);
+            return cube;
+        }
+
+        function animateBlockAppearance(block, delay) {
+            setTimeout(() => {
+                let opacity = 0;
+                const interval = setInterval(() => {
+                    opacity += 0.05;
+                    if (opacity >= 0.8) {
+                        opacity = 0.8;
+                        clearInterval(interval);
+                    }
+                    block.material.opacity = opacity;
+                    block.children[0].material.opacity = opacity;
+                }, 20);
+                
+                blockCounter++;
+                document.getElementById('blocks-count').textContent = blockCounter;
+                document.getElementById('height-value').textContent = (block.position.y * 0.5).toFixed(1) + 'm';
+            }, delay);
+        }
+
+        function executeStep(stepIndex) {
+            if (stepIndex >= steps.length) return;
+            
+            currentStep = stepIndex;
+            const step = steps[stepIndex];
+            
+            document.getElementById('step-number').textContent = `Phase ${stepIndex + 1} of ${steps.length}`;
+            document.getElementById('step-title').textContent = step.title;
+            document.getElementById('step-description').textContent = step.description;
+            document.getElementById('progress-fill').style.width = ((stepIndex + 1) / steps.length * 100) + '%';
+            
+            step.blocks.forEach((blockData, index) => {
+                const block = createBlock(blockData.x, blockData.y, blockData.z, blockData.color);
+                building.push(block);
+                animateBlockAppearance(block, index * 100);
+            });
+            
+            setTimeout(() => {
+                executeStep(stepIndex + 1);
+            }, step.blocks.length * 100 + 2000);
+        }
+
+        // Запуск анимации через 1 секунду
+        setTimeout(() => executeStep(0), 1000);
+
+        // Анимация
+        let angle = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Вращаем камеру вокруг здания
+            angle += 0.002;
+            camera.position.x = Math.cos(angle) * 15;
+            camera.position.z = Math.sin(angle) * 15;
+            camera.lookAt(0, 3, 0);
+            
+            // Вращаем частицы
+            particles.rotation.y += 0.0005;
+            
+            // Пульсация последних добавленных блоков
+            building.slice(-5).forEach((block, i) => {
+                if (block.material.opacity > 0) {
+                    const scale = 1 + Math.sin(Date.now() * 0.003 + i) * 0.05;
+                    block.scale.set(scale, scale, scale);
+                }
+            });
+            
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+    </script>
+</body>
+</html>
