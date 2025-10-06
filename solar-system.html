@@ -207,7 +207,11 @@
         <div class="stat-title">Scene Info</div>
         <div class="stat-row">
             <span class="stat-label">Real Stars:</span>
-            <span class="stat-value">50+</span>
+            <span class="stat-value">35</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Background:</span>
+            <span class="stat-value">12K</span>
         </div>
         <div class="stat-row">
             <span class="stat-label">Planets:</span>
@@ -216,10 +220,6 @@
         <div class="stat-row">
             <span class="stat-label">Moons:</span>
             <span class="stat-value">12</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Comets:</span>
-            <span class="stat-value">3</span>
         </div>
     </div>
 
@@ -280,11 +280,25 @@
             { name: 'Bellatrix', ra: 81.28, dec: 6.35, distance: 250, magnitude: 1.64, color: 0xaaddff },
             { name: 'Alnilam', ra: 84.05, dec: -1.20, distance: 2000, magnitude: 1.69, color: 0xaaddff },
             { name: 'Polaris', ra: 37.95, dec: 89.26, distance: 433, magnitude: 1.98, color: 0xffffcc },
+            { name: 'Achernar', ra: 24.43, dec: -57.24, distance: 139, magnitude: 0.46, color: 0xaaddff },
+            { name: 'Hadar', ra: 210.96, dec: -60.37, distance: 525, magnitude: 0.61, color: 0xaaddff },
+            { name: 'Acrux', ra: 186.65, dec: -63.10, distance: 321, magnitude: 0.77, color: 0xaaddff },
+            { name: 'Mimosa', ra: 191.93, dec: -59.69, distance: 353, magnitude: 1.25, color: 0xaaddff },
+            { name: 'Shaula', ra: 263.40, dec: -37.10, distance: 570, magnitude: 1.62, color: 0xaaddff },
+            { name: 'Gacrux', ra: 187.79, dec: -57.11, distance: 88, magnitude: 1.63, color: 0xff6644 },
+            { name: 'Alnair', ra: 332.06, dec: -46.96, distance: 101, magnitude: 1.74, color: 0xaaddff },
+            { name: 'Alioth', ra: 193.51, dec: 55.96, distance: 81, magnitude: 1.77, color: 0xffffff },
+            { name: 'Dubhe', ra: 165.93, dec: 61.75, distance: 123, magnitude: 1.79, color: 0xffaa66 },
+            { name: 'Mirfak', ra: 51.08, dec: 49.86, distance: 510, magnitude: 1.8, color: 0xffffcc },
+            { name: 'Alkaid', ra: 206.89, dec: 49.31, distance: 101, magnitude: 1.86, color: 0xaaddff },
+            { name: 'Mizar', ra: 200.98, dec: 54.93, distance: 78, magnitude: 2.04, color: 0xffffff },
+            { name: 'Kochab', ra: 222.68, dec: 74.16, distance: 131, magnitude: 2.08, color: 0xffaa66 },
+            { name: 'Alphard', ra: 141.90, dec: -8.66, distance: 177, magnitude: 1.98, color: 0xffaa66 },
         ];
 
         function createRealStarField() {
             const starGroup = new THREE.Group();
-            const scale = 20; // масштаб для отображения (1 св.год = 20 единиц)
+            const scale = 80; // масштаб для отображения (1 св.год = 80 единиц - дальше!)
             
             // Добавляем реальные звёзды
             realStars.forEach(star => {
@@ -297,10 +311,10 @@
                 const y = dist * Math.sin(decRad);
                 const z = dist * Math.cos(decRad) * Math.sin(raRad);
                 
-                // Размер зависит от яркости
-                const size = 3 + (2 - star.magnitude) * 0.5;
+                // Размер меньше и зависит от яркости
+                const size = 0.8 + (2 - star.magnitude) * 0.15;
                 
-                const starGeometry = new THREE.SphereGeometry(Math.max(size, 1.5), 8, 8);
+                const starGeometry = new THREE.SphereGeometry(Math.max(size, 0.4), 8, 8);
                 const starMaterial = new THREE.MeshBasicMaterial({
                     color: star.color,
                     emissive: star.color,
@@ -309,13 +323,13 @@
                 const starMesh = new THREE.Mesh(starGeometry, starMaterial);
                 starMesh.position.set(x, y, z);
                 
-                // Добавляем свечение для ярких звёзд
-                if (star.magnitude < 1) {
-                    const glowGeometry = new THREE.SphereGeometry(size * 1.5, 8, 8);
+                // Добавляем свечение для самых ярких звёзд
+                if (star.magnitude < 0.5) {
+                    const glowGeometry = new THREE.SphereGeometry(size * 2, 8, 8);
                     const glowMaterial = new THREE.MeshBasicMaterial({
                         color: star.color,
                         transparent: true,
-                        opacity: 0.3,
+                        opacity: 0.2,
                         side: THREE.BackSide
                     });
                     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
@@ -327,7 +341,7 @@
             
             // Добавляем дополнительные случайные звёзды для плотности
             const randomStarGeometry = new THREE.BufferGeometry();
-            const starCount = 5000;
+            const starCount = 12000; // Больше звёзд
             const positions = new Float32Array(starCount * 3);
             const colors = new Float32Array(starCount * 3);
             const sizes = new Float32Array(starCount);
@@ -336,7 +350,7 @@
                 const i3 = i * 3;
                 const theta = Math.random() * Math.PI * 2;
                 const phi = Math.acos(2 * Math.random() - 1);
-                const distance = 5000 + Math.random() * 10000;
+                const distance = 8000 + Math.random() * 15000; // Дальше
                 
                 positions[i3] = distance * Math.sin(phi) * Math.cos(theta);
                 positions[i3 + 1] = distance * Math.cos(phi);
@@ -357,7 +371,7 @@
                     colors[i3 + 2] = 1.0;
                 }
                 
-                sizes[i] = 0.3 + Math.random() * 1.5;
+                sizes[i] = 0.2 + Math.random() * 0.8; // Меньше
             }
             
             randomStarGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -365,10 +379,10 @@
             randomStarGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
             
             const randomStarMaterial = new THREE.PointsMaterial({
-                size: 1.5,
+                size: 0.8, // Меньше размер
                 vertexColors: true,
                 transparent: true,
-                opacity: 0.6,
+                opacity: 0.7,
                 blending: THREE.AdditiveBlending,
                 sizeAttenuation: true
             });
@@ -698,7 +712,7 @@
             });
             
             moons.forEach(moon => {
-                moon.angle += moon.speed * 0.02;
+                moon.angle += moon.speed * 0.005; // Медленнее в 4 раза
                 const x = Math.cos(moon.angle) * moon.distance;
                 const z = Math.sin(moon.angle) * moon.distance;
                 moon.mesh.position.copy(moon.planet.position);
