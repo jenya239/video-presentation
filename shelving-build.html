@@ -550,11 +550,16 @@
                     }
                     
                     // Update UI
-                    const stageIndex = Math.min(currentStage, stages.length - 1);
-                    document.getElementById('stage-name').textContent = `Stage ${currentStage + 1}/${stages.length}: ${stages[stageIndex].name}`;
-                    document.getElementById('stage-desc').textContent = stages[stageIndex].desc;
-                    const totalProgress = ((currentStage + (stageProgress / stages[currentStage].duration)) / stages.length) * 100;
-                    document.getElementById('progress').style.width = totalProgress + '%';
+                    if (currentStage < stages.length) {
+                        document.getElementById('stage-name').textContent = `Stage ${currentStage + 1}/${stages.length}: ${stages[currentStage].name}`;
+                        document.getElementById('stage-desc').textContent = stages[currentStage].desc;
+                        const totalProgress = ((currentStage + (stageProgress / stages[currentStage].duration)) / stages.length) * 100;
+                        document.getElementById('progress').style.width = totalProgress + '%';
+                    } else {
+                        document.getElementById('stage-name').textContent = `Complete!`;
+                        document.getElementById('stage-desc').textContent = 'Shelving unit ready';
+                        document.getElementById('progress').style.width = '100%';
+                    }
                 }
                 
                 updateParticles();
