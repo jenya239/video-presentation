@@ -137,6 +137,24 @@
         ground.receiveShadow = true;
         scene.add(ground);
         
+        // Debug: visualize frame structure with thin lines
+        const debugLines = new THREE.Group();
+        frameStructure.forEach(spec => {
+            const points = [
+                new THREE.Vector3(...spec.start),
+                new THREE.Vector3(...spec.end)
+            ];
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: 0x00ff00, 
+                opacity: 0.3, 
+                transparent: true 
+            });
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            debugLines.add(line);
+        });
+        scene.add(debugLines);
+        
         // Materials
         const metalColor = 0x808080; // Raw metal
         const paintedColor = 0x2c3e50; // Dark blue-gray
@@ -160,9 +178,54 @@
         let originalProfile = null;
         let originalPlywood = null;
         
-        // Cut pieces storage
+        // Cut pieces storage - with target positions
         const cutProfiles = [];
         const cutPlywood = [];
+        
+        // Frame structure definition
+        // Each profile knows: type, length, start pos, end pos
+        const frameStructure = [
+            // 4 vertical posts (2m) - corners of the frame
+            { type: 'vertical', length: 2.0, 
+              start: [-shelfWidth/2, 0, -shelfDepth/2], 
+              end: [-shelfWidth/2, shelfHeight, -shelfDepth/2] },  // Front-left corner
+            { type: 'vertical', length: 2.0, 
+              start: [shelfWidth/2, 0, -shelfDepth/2], 
+              end: [shelfWidth/2, shelfHeight, -shelfDepth/2] },   // Front-right corner
+            { type: 'vertical', length: 2.0, 
+              start: [-shelfWidth/2, 0, shelfDepth/2], 
+              end: [-shelfWidth/2, shelfHeight, shelfDepth/2] },   // Back-left corner
+            { type: 'vertical', length: 2.0, 
+              start: [shelfWidth/2, 0, shelfDepth/2], 
+              end: [shelfWidth/2, shelfHeight, shelfDepth/2] },    // Back-right corner
+            
+            // Bottom depth braces (0.5m) - connect front to back
+            { type: 'depth', length: 0.5, 
+              start: [-shelfWidth/2, 0, -shelfDepth/2], 
+              end: [-shelfWidth/2, 0, shelfDepth/2] },             // Left bottom
+            { type: 'depth', length: 0.5, 
+              start: [shelfWidth/2, 0, -shelfDepth/2], 
+              end: [shelfWidth/2, 0, shelfDepth/2] },              // Right bottom
+            
+            // Top depth braces (0.5m)
+            { type: 'depth', length: 0.5, 
+              start: [-shelfWidth/2, shelfHeight, -shelfDepth/2], 
+              end: [-shelfWidth/2, shelfHeight, shelfDepth/2] },   // Left top
+            { type: 'depth', length: 0.5, 
+              start: [shelfWidth/2, shelfHeight, -shelfDepth/2], 
+              end: [shelfWidth/2, shelfHeight, shelfDepth/2] },    // Right top
+            
+            // Bottom width braces (2m) - not needed, too long
+            // Top width braces (2m) - not needed, too long
+            
+            // Middle shelf supports (0.5m)
+            { type: 'depth', length: 0.5, 
+              start: [-shelfWidth/2, shelfHeight/2, -shelfDepth/2], 
+              end: [-shelfWidth/2, shelfHeight/2, shelfDepth/2] }, // Left middle
+            { type: 'depth', length: 0.5, 
+              start: [shelfWidth/2, shelfHeight/2, -shelfDepth/2], 
+              end: [shelfWidth/2, shelfHeight/2, shelfDepth/2] }   // Right middle
+        ];
         
         // Stages
         const stages = [
@@ -281,12 +344,11 @@
                 createSparks(originalProfile.position.x, originalProfile.position.y, originalProfile.position.z, 8);
             }
             
-            // Create cut pieces at milestones
-            const cuts = [0.2, 0.4, 0.6, 0.8];
-            cuts.forEach((cutPoint, i) => {
+            // Create cut pieces based on frameStructure
+            frameStructure.forEach((spec, i) => {
+                const cutPoint = (i + 1) / (frameStructure.length + 1);
                 if (progress >= cutPoint && cutProfiles.length <= i) {
-                    const length = [2.0, 2.0, 0.5, 0.5][i];
-                    createCutProfile(length, i);
+                    createCutProfile(spec, i);
                 }
             });
             
@@ -296,18 +358,39 @@
             }
         }
         
-        function createCutProfile(length, index) {
-            const geometry = new THREE.BoxGeometry(length, profileSize, profileSize);
+        function createCutProfile(spec, index) {
+            // Profiles lie horizontally when cut
+            const geometry = new THREE.BoxGeometry(spec.length, profileSize, profileSize);
             const material = new THREE.MeshStandardMaterial({ 
                 color: metalColor,
                 metalness: 0.7,
                 roughness: 0.3
             });
             const mesh = new THREE.Mesh(geometry, material);
-            mesh.position.set(1 + index * 0.3, 0.3, -1.5 + index * 0.2);
-            mesh.rotation.z = Math.PI / 2;
+            
+            // Initial position - scattered on ground
+            mesh.position.set(1 + (index % 4) * 0.4, 0.1, -1.5 + Math.floor(index / 4) * 0.3);
+            
+            // Store target position and orientation
+            mesh.userData.spec = spec;
+            mesh.userData.targetStart = new THREE.Vector3(...spec.start);
+            mesh.userData.targetEnd = new THREE.Vector3(...spec.end);
+            
+            // Calculate center position and orientation from start/end
+            const center = new THREE.Vector3().addVectors(
+                mesh.userData.targetStart,
+                mesh.userData.targetEnd
+            ).multiplyScalar(0.5);
+            mesh.userData.targetCenter = center;
+            
+            // Calculate rotation to align with direction
+            const direction = new THREE.Vector3().subVectors(
+                mesh.userData.targetEnd,
+                mesh.userData.targetStart
+            ).normalize();
+            mesh.userData.targetDirection = direction;
+            
             mesh.castShadow = true;
-            mesh.userData.cutPiece = true;
             scene.add(mesh);
             cutProfiles.push(mesh);
         }
@@ -355,28 +438,27 @@
         function weldFrame_stage() {
             const progress = stageProgress / stages[2].duration;
             
-            // Move cut profiles to frame positions
-            if (cutProfiles.length > 0) {
-                const positions = [
-                    { x: -shelfWidth/2, y: shelfHeight/2, z: 0, rot: 0 }, // Left vertical
-                    { x: shelfWidth/2, y: shelfHeight/2, z: 0, rot: 0 },  // Right vertical
-                    { x: 0, y: shelfHeight, z: 0, rot: Math.PI/2 },       // Top horizontal
-                    { x: 0, y: 0, z: 0, rot: Math.PI/2 }                  // Bottom horizontal
-                ];
+            cutProfiles.forEach((profile) => {
+                // Move to target center
+                profile.position.lerp(profile.userData.targetCenter, 0.03 * speed);
                 
-                cutProfiles.forEach((profile, i) => {
-                    if (i < positions.length) {
-                        const target = positions[i];
-                        profile.position.lerp(new THREE.Vector3(target.x, target.y, target.z), 0.02 * speed);
-                        profile.rotation.z += (target.rot - profile.rotation.z) * 0.02 * speed;
-                        
-                        // Welding sparks at joints
-                        if (stageProgress % 10 === 0 && Math.random() > 0.7) {
-                            createWeldSparks(profile.position.x, profile.position.y, profile.position.z, 15);
-                        }
-                    }
-                });
-            }
+                // Align profile with target direction
+                // Profile's default orientation is along X axis (length, profileSize, profileSize)
+                const defaultDir = new THREE.Vector3(1, 0, 0);
+                const targetDir = profile.userData.targetDirection;
+                
+                // Calculate rotation to align defaultDir with targetDir
+                const quaternion = new THREE.Quaternion();
+                quaternion.setFromUnitVectors(defaultDir, targetDir);
+                
+                // Smoothly interpolate to target rotation
+                profile.quaternion.slerp(quaternion, 0.03 * speed);
+                
+                // Welding sparks at joints
+                if (stageProgress % 10 === 0 && Math.random() > 0.7) {
+                    createWeldSparks(profile.position.x, profile.position.y, profile.position.z, 15);
+                }
+            });
             
             if (progress >= 1) {
                 cutProfiles.forEach(p => p.userData.welded = true);
@@ -412,20 +494,21 @@
         function finalAssembly_stage() {
             const progress = stageProgress / stages[4].duration;
             
-            // Install shelves
+            // Install shelves - they lie flat horizontally centered in the frame
             const shelfPositions = [
-                { y: 0.5 },
-                { y: 1.5 }
+                { x: 0, y: shelfHeight / 3, z: 0 },       // Lower shelf
+                { x: 0, y: shelfHeight * 2 / 3, z: 0 }    // Upper shelf
             ];
             
             cutPlywood.forEach((shelf, i) => {
                 if (i < shelfPositions.length) {
                     const target = shelfPositions[i];
-                    shelf.position.x += (0 - shelf.position.x) * 0.03 * speed;
+                    shelf.position.x += (target.x - shelf.position.x) * 0.03 * speed;
                     shelf.position.y += (target.y - shelf.position.y) * 0.03 * speed;
-                    shelf.position.z += (0 - shelf.position.z) * 0.03 * speed;
+                    shelf.position.z += (target.z - shelf.position.z) * 0.03 * speed;
                     shelf.rotation.x += (0 - shelf.rotation.x) * 0.03 * speed;
                     shelf.rotation.y += (0 - shelf.rotation.y) * 0.03 * speed;
+                    shelf.rotation.z += (0 - shelf.rotation.z) * 0.03 * speed;
                 }
             });
         }
