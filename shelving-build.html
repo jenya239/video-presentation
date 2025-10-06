@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shelving Unit Manufacturing</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow: hidden;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        #canvas { display: block; }
+        .info-panel {
+            position: fixed; top: 20px; left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white; padding: 20px;
+            border-radius: 10px; font-size: 14px;
+            max-width: 320px;
+            backdrop-filter: blur(10px);
+        }
+        .info-panel h2 {
+            margin: 0 0 10px 0; font-size: 18px;
+            color: #3498db;
+        }
+        .stage-info {
+            margin: 10px 0; padding: 10px;
+            background: rgba(52, 152, 219, 0.2);
+            border-radius: 5px;
+        }
+        .progress-bar {
+            width: 100%; height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px; overflow: hidden;
+            margin-top: 10px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            width: 0%; transition: width 0.3s;
+        }
+        .controls {
+            position: fixed; bottom: 20px;
+            left: 50%; transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 30px; border-radius: 30px;
+            backdrop-filter: blur(10px);
+        }
+        .controls button {
+            background: #3498db; border: none;
+            color: white; padding: 10px 20px;
+            margin: 0 5px; border-radius: 20px;
+            cursor: pointer; font-size: 14px;
+            transition: all 0.3s;
+        }
+        .controls button:hover {
+            background: #2980b9;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="info-panel">
+        <h2>Shelving Unit Manufacturing</h2>
+        <div class="stage-info">
+            <div id="stage-name">Stage: Materials Preparation</div>
+            <div id="stage-desc">Cutting metal profiles...</div>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button onclick="changeSpeed(-1)">◄ Slower</button>
+        <button onclick="togglePause()">⏸ Pause</button>
+        <button onclick="changeSpeed(1)">Faster ►</button>
+        <button onclick="resetAnimation()">↻ Reset</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a1a);
+        scene.fog = new THREE.Fog(0x1a1a1a, 20, 50);
+        
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        
+        camera.position.set(4, 3, 4);
+        camera.lookAt(0, 1, 0);
+        
+        // OrbitControls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 2;
+        controls.maxDistance = 15;
+        controls.target.set(0, 1, 0);
+        controls.update();
+        
+        // Lighting
+        const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        mainLight.position.set(10, 15, 5);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        mainLight.shadow.camera.left = -10;
+        mainLight.shadow.camera.right = 10;
+        mainLight.shadow.camera.top = 10;
+        mainLight.shadow.camera.bottom = -10;
+        scene.add(mainLight);
+        
+        const ambientLight = new THREE.AmbientLight(0x404040, 1);
+        scene.add(ambientLight);
+        
+        const workLight = new THREE.PointLight(0xffffff, 0.5);
+        workLight.position.set(0, 2, 0);
+        scene.add(workLight);
+        
+        // Ground
+        const groundGeometry = new THREE.PlaneGeometry(50, 50);
+        const groundMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x2c3e50,
+            roughness: 0.9
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+        
+        // Materials
+        const metalColor = 0x808080; // Raw metal
+        const paintedColor = 0x2c3e50; // Dark blue-gray
+        const plywoodColor = 0xd2b48c;
+        
+        // Shelving dimensions
+        const shelfWidth = 2.0;
+        const shelfHeight = 2.0;
+        const shelfDepth = 0.5;
+        const profileSize = 0.04; // 40x40mm square profile
+        
+        // Parts storage
+        const parts = [];
+        const particles = [];
+        let currentStage = 0;
+        let stageProgress = 0;
+        let paused = false;
+        let speed = 1;
+        
+        // Original materials (for cutting animation)
+        let originalProfile = null;
+        let originalPlywood = null;
+        
+        // Cut pieces storage
+        const cutProfiles = [];
+        const cutPlywood = [];
+        
+        // Stages
+        const stages = [
+            { 
+                name: 'Cutting Metal Profiles',
+                desc: 'Angle grinder cutting 6m profile into pieces',
+                duration: 180,
+                action: cutProfiles_stage
+            },
+            { 
+                name: 'Cutting Plywood',
+                desc: 'Circular saw cutting 1525×1525mm sheets',
+                duration: 120,
+                action: cutPlywood_stage
+            },
+            { 
+                name: 'Welding Frame',
+                desc: 'MIG welding metal frame joints',
+                duration: 200,
+                action: weldFrame_stage
+            },
+            { 
+                name: 'Painting Metal',
+                desc: 'Spray painting metal parts',
+                duration: 150,
+                action: paintMetal_stage
+            },
+            { 
+                name: 'Final Assembly',
+                desc: 'Installing shelves on frame',
+                duration: 100,
+                action: finalAssembly_stage
+            }
+        ];
+        
+        // Create original 6m profile
+        function createOriginalProfile() {
+            const geometry = new THREE.BoxGeometry(6, profileSize, profileSize);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: metalColor,
+                metalness: 0.7,
+                roughness: 0.3
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(-2, 0.5, -1.5);
+            mesh.rotation.y = Math.PI / 6;
+            mesh.castShadow = true;
+            scene.add(mesh);
+            return mesh;
+        }
+        
+        // Create original plywood sheet
+        function createOriginalPlywood() {
+            const geometry = new THREE.BoxGeometry(1.525, 0.018, 1.525);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: plywoodColor,
+                roughness: 0.7
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(-2, 0.5, 1);
+            mesh.rotation.y = Math.PI / 8;
+            mesh.castShadow = true;
+            scene.add(mesh);
+            return mesh;
+        }
+        
+        // Particle system for sparks/dust
+        function createParticle(x, y, z, color, size = 0.02) {
+            const geometry = new THREE.SphereGeometry(size, 4, 4);
+            const material = new THREE.MeshBasicMaterial({ color });
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(x, y, z);
+            particle.velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.1,
+                Math.random() * 0.05,
+                (Math.random() - 0.5) * 0.1
+            );
+            particle.life = 1.0;
+            scene.add(particle);
+            particles.push(particle);
+            return particle;
+        }
+        
+        // Cutting sparks
+        function createSparks(x, y, z, count = 5) {
+            for (let i = 0; i < count; i++) {
+                createParticle(x, y, z, 0xffaa00, 0.015);
+            }
+        }
+        
+        // Welding sparks
+        function createWeldSparks(x, y, z, count = 10) {
+            for (let i = 0; i < count; i++) {
+                const p = createParticle(x, y, z, 0xffffaa, 0.01);
+                p.velocity.multiplyScalar(2);
+            }
+        }
+        
+        // Paint particles
+        function createPaintMist(x, y, z, count = 3) {
+            for (let i = 0; i < count; i++) {
+                createParticle(x, y, z, paintedColor, 0.02);
+            }
+        }
+        
+        // Stage 1: Cut profiles
+        function cutProfiles_stage() {
+            if (!originalProfile) {
+                originalProfile = createOriginalProfile();
+            }
+            
+            const progress = stageProgress / stages[0].duration;
+            
+            // Cut position animation
+            if (progress < 1 && stageProgress % 15 === 0) {
+                createSparks(originalProfile.position.x, originalProfile.position.y, originalProfile.position.z, 8);
+            }
+            
+            // Create cut pieces at milestones
+            const cuts = [0.2, 0.4, 0.6, 0.8];
+            cuts.forEach((cutPoint, i) => {
+                if (progress >= cutPoint && cutProfiles.length <= i) {
+                    const length = [2.0, 2.0, 0.5, 0.5][i];
+                    createCutProfile(length, i);
+                }
+            });
+            
+            if (progress >= 1) {
+                scene.remove(originalProfile);
+                originalProfile = null;
+            }
+        }
+        
+        function createCutProfile(length, index) {
+            const geometry = new THREE.BoxGeometry(length, profileSize, profileSize);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: metalColor,
+                metalness: 0.7,
+                roughness: 0.3
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(1 + index * 0.3, 0.3, -1.5 + index * 0.2);
+            mesh.rotation.z = Math.PI / 2;
+            mesh.castShadow = true;
+            mesh.userData.cutPiece = true;
+            scene.add(mesh);
+            cutProfiles.push(mesh);
+        }
+        
+        // Stage 2: Cut plywood
+        function cutPlywood_stage() {
+            if (!originalPlywood) {
+                originalPlywood = createOriginalPlywood();
+            }
+            
+            const progress = stageProgress / stages[1].duration;
+            
+            if (progress < 1 && stageProgress % 20 === 0) {
+                createParticle(originalPlywood.position.x, originalPlywood.position.y, originalPlywood.position.z, 0xd2b48c, 0.02);
+            }
+            
+            const cuts = [0.33, 0.66];
+            cuts.forEach((cutPoint, i) => {
+                if (progress >= cutPoint && cutPlywood.length <= i) {
+                    createCutPlywood(i);
+                }
+            });
+            
+            if (progress >= 1) {
+                scene.remove(originalPlywood);
+                originalPlywood = null;
+            }
+        }
+        
+        function createCutPlywood(index) {
+            const geometry = new THREE.BoxGeometry(shelfWidth, 0.018, shelfDepth);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: plywoodColor,
+                roughness: 0.7
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(1.5, 0.3, 0.5 + index * 0.3);
+            mesh.castShadow = true;
+            mesh.userData.cutPiece = true;
+            scene.add(mesh);
+            cutPlywood.push(mesh);
+        }
+        
+        // Stage 3: Welding
+        function weldFrame_stage() {
+            const progress = stageProgress / stages[2].duration;
+            
+            // Move cut profiles to frame positions
+            if (cutProfiles.length > 0) {
+                const positions = [
+                    { x: -shelfWidth/2, y: shelfHeight/2, z: 0, rot: 0 }, // Left vertical
+                    { x: shelfWidth/2, y: shelfHeight/2, z: 0, rot: 0 },  // Right vertical
+                    { x: 0, y: shelfHeight, z: 0, rot: Math.PI/2 },       // Top horizontal
+                    { x: 0, y: 0, z: 0, rot: Math.PI/2 }                  // Bottom horizontal
+                ];
+                
+                cutProfiles.forEach((profile, i) => {
+                    if (i < positions.length) {
+                        const target = positions[i];
+                        profile.position.lerp(new THREE.Vector3(target.x, target.y, target.z), 0.02 * speed);
+                        profile.rotation.z += (target.rot - profile.rotation.z) * 0.02 * speed;
+                        
+                        // Welding sparks at joints
+                        if (stageProgress % 10 === 0 && Math.random() > 0.7) {
+                            createWeldSparks(profile.position.x, profile.position.y, profile.position.z, 15);
+                        }
+                    }
+                });
+            }
+            
+            if (progress >= 1) {
+                cutProfiles.forEach(p => p.userData.welded = true);
+            }
+        }
+        
+        // Stage 4: Painting
+        function paintMetal_stage() {
+            const progress = stageProgress / stages[3].duration;
+            
+            cutProfiles.forEach((profile) => {
+                if (profile.userData.welded) {
+                    // Gradual color change
+                    const currentColor = new THREE.Color().copy(profile.material.color);
+                    const targetColor = new THREE.Color(paintedColor);
+                    currentColor.lerp(targetColor, 0.01 * speed);
+                    profile.material.color.copy(currentColor);
+                    
+                    // Paint mist
+                    if (stageProgress % 15 === 0 && Math.random() > 0.6) {
+                        createPaintMist(
+                            profile.position.x + (Math.random() - 0.5) * 0.2,
+                            profile.position.y + (Math.random() - 0.5) * 0.2,
+                            profile.position.z,
+                            2
+                        );
+                    }
+                }
+            });
+        }
+        
+        // Stage 5: Final assembly
+        function finalAssembly_stage() {
+            const progress = stageProgress / stages[4].duration;
+            
+            // Install shelves
+            const shelfPositions = [
+                { y: 0.5 },
+                { y: 1.5 }
+            ];
+            
+            cutPlywood.forEach((shelf, i) => {
+                if (i < shelfPositions.length) {
+                    const target = shelfPositions[i];
+                    shelf.position.x += (0 - shelf.position.x) * 0.03 * speed;
+                    shelf.position.y += (target.y - shelf.position.y) * 0.03 * speed;
+                    shelf.position.z += (0 - shelf.position.z) * 0.03 * speed;
+                    shelf.rotation.x += (0 - shelf.rotation.x) * 0.03 * speed;
+                    shelf.rotation.y += (0 - shelf.rotation.y) * 0.03 * speed;
+                }
+            });
+        }
+        
+        // Update particles
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.position.add(p.velocity);
+                p.velocity.y -= 0.002; // Gravity
+                p.life -= 0.02;
+                p.material.opacity = p.life;
+                p.material.transparent = true;
+                
+                if (p.life <= 0) {
+                    scene.remove(p);
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        
+        // Animation loop
+        let time = 0;
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (!paused) {
+                time += 0.016 * speed;
+                
+                // Execute current stage
+                if (currentStage < stages.length) {
+                    stages[currentStage].action();
+                    stageProgress += speed;
+                    
+                    if (stageProgress >= stages[currentStage].duration) {
+                        currentStage++;
+                        stageProgress = 0;
+                    }
+                    
+                    // Update UI
+                    const stageIndex = Math.min(currentStage, stages.length - 1);
+                    document.getElementById('stage-name').textContent = `Stage ${currentStage + 1}/${stages.length}: ${stages[stageIndex].name}`;
+                    document.getElementById('stage-desc').textContent = stages[stageIndex].desc;
+                    const totalProgress = ((currentStage + (stageProgress / stages[currentStage].duration)) / stages.length) * 100;
+                    document.getElementById('progress').style.width = totalProgress + '%';
+                }
+                
+                updateParticles();
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        function togglePause() {
+            paused = !paused;
+            document.querySelector('.controls button:nth-child(2)').textContent = paused ? '▶ Play' : '⏸ Pause';
+        }
+        
+        function changeSpeed(delta) {
+            speed = Math.max(0.5, Math.min(3, speed + delta * 0.5));
+        }
+        
+        function resetAnimation() {
+            // Remove all parts
+            cutProfiles.forEach(p => scene.remove(p));
+            cutPlywood.forEach(p => scene.remove(p));
+            particles.forEach(p => scene.remove(p));
+            cutProfiles.length = 0;
+            cutPlywood.length = 0;
+            particles.length = 0;
+            
+            if (originalProfile) scene.remove(originalProfile);
+            if (originalPlywood) scene.remove(originalPlywood);
+            originalProfile = null;
+            originalPlywood = null;
+            
+            currentStage = 0;
+            stageProgress = 0;
+            time = 0;
+            document.getElementById('progress').style.width = '0%';
+        }
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        animate();
+    </script>
+</body>
+</html>
+
