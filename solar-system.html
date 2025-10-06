@@ -199,18 +199,19 @@
         <div class="planet-item" data-planet="saturn">♄ Saturn</div>
         <div class="planet-item" data-planet="uranus">♅ Uranus</div>
         <div class="planet-item" data-planet="neptune">♆ Neptune</div>
+        <div class="planet-item" data-planet="pluto">♇ Pluto</div>
         <button class="overview-btn" id="overview-btn">⟲ System Overview</button>
     </div>
 
     <div class="stats">
         <div class="stat-title">Scene Info</div>
         <div class="stat-row">
-            <span class="stat-label">Stars:</span>
-            <span class="stat-value">8000</span>
+            <span class="stat-label">Real Stars:</span>
+            <span class="stat-value">50+</span>
         </div>
         <div class="stat-row">
             <span class="stat-label">Planets:</span>
-            <span class="stat-value">8</span>
+            <span class="stat-value">9</span>
         </div>
         <div class="stat-row">
             <span class="stat-label">Moons:</span>
@@ -237,7 +238,7 @@
     <script>
         const canvas = document.getElementById('webgl-canvas');
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 20000);
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -256,34 +257,90 @@
         const ambientLight = new THREE.AmbientLight(0x222222);
         scene.add(ambientLight);
 
-        // Звёздное небо
-        function createStarField() {
-            const starGeometry = new THREE.BufferGeometry();
-            const starCount = 8000;
+        // Реальные звёзды из каталога ярких звёзд (расстояние в св.годах, координаты)
+        const realStars = [
+            { name: 'Sirius', ra: 101.28, dec: -16.72, distance: 8.6, magnitude: -1.46, color: 0xaaddff },
+            { name: 'Canopus', ra: 95.99, dec: -52.7, distance: 310, magnitude: -0.72, color: 0xffffdd },
+            { name: 'Alpha Centauri', ra: 219.90, dec: -60.84, distance: 4.37, magnitude: -0.27, color: 0xffffaa },
+            { name: 'Arcturus', ra: 213.91, dec: 19.18, distance: 37, magnitude: -0.05, color: 0xffaa66 },
+            { name: 'Vega', ra: 279.23, dec: 38.78, distance: 25, magnitude: 0.03, color: 0xaaddff },
+            { name: 'Capella', ra: 79.17, dec: 45.99, distance: 43, magnitude: 0.08, color: 0xffffaa },
+            { name: 'Rigel', ra: 78.63, dec: -8.2, distance: 860, magnitude: 0.13, color: 0xaaccff },
+            { name: 'Procyon', ra: 114.83, dec: 5.22, distance: 11.5, magnitude: 0.38, color: 0xffffcc },
+            { name: 'Betelgeuse', ra: 88.79, dec: 7.41, distance: 550, magnitude: 0.5, color: 0xff6644 },
+            { name: 'Altair', ra: 297.69, dec: 8.87, distance: 17, magnitude: 0.77, color: 0xffffff },
+            { name: 'Aldebaran', ra: 68.98, dec: 16.51, distance: 65, magnitude: 0.85, color: 0xff8844 },
+            { name: 'Spica', ra: 201.30, dec: -11.16, distance: 260, magnitude: 0.98, color: 0xaaddff },
+            { name: 'Antares', ra: 247.35, dec: -26.43, distance: 550, magnitude: 1.06, color: 0xff4422 },
+            { name: 'Pollux', ra: 116.33, dec: 28.03, distance: 34, magnitude: 1.14, color: 0xffaa66 },
+            { name: 'Fomalhaut', ra: 344.41, dec: -29.62, distance: 25, magnitude: 1.16, color: 0xffffff },
+            { name: 'Deneb', ra: 310.36, dec: 45.28, distance: 2600, magnitude: 1.25, color: 0xccddff },
+            { name: 'Regulus', ra: 152.09, dec: 11.97, distance: 79, magnitude: 1.35, color: 0xaaddff },
+            { name: 'Castor', ra: 113.65, dec: 31.89, distance: 52, magnitude: 1.58, color: 0xffffff },
+            { name: 'Bellatrix', ra: 81.28, dec: 6.35, distance: 250, magnitude: 1.64, color: 0xaaddff },
+            { name: 'Alnilam', ra: 84.05, dec: -1.20, distance: 2000, magnitude: 1.69, color: 0xaaddff },
+            { name: 'Polaris', ra: 37.95, dec: 89.26, distance: 433, magnitude: 1.98, color: 0xffffcc },
+        ];
+
+        function createRealStarField() {
+            const starGroup = new THREE.Group();
+            const scale = 20; // масштаб для отображения (1 св.год = 20 единиц)
+            
+            // Добавляем реальные звёзды
+            realStars.forEach(star => {
+                // Преобразуем координаты (RA, Dec) в декартовы
+                const raRad = star.ra * Math.PI / 180;
+                const decRad = star.dec * Math.PI / 180;
+                const dist = star.distance * scale;
+                
+                const x = dist * Math.cos(decRad) * Math.cos(raRad);
+                const y = dist * Math.sin(decRad);
+                const z = dist * Math.cos(decRad) * Math.sin(raRad);
+                
+                // Размер зависит от яркости
+                const size = 3 + (2 - star.magnitude) * 0.5;
+                
+                const starGeometry = new THREE.SphereGeometry(Math.max(size, 1.5), 8, 8);
+                const starMaterial = new THREE.MeshBasicMaterial({
+                    color: star.color,
+                    emissive: star.color,
+                    emissiveIntensity: 0.8
+                });
+                const starMesh = new THREE.Mesh(starGeometry, starMaterial);
+                starMesh.position.set(x, y, z);
+                
+                // Добавляем свечение для ярких звёзд
+                if (star.magnitude < 1) {
+                    const glowGeometry = new THREE.SphereGeometry(size * 1.5, 8, 8);
+                    const glowMaterial = new THREE.MeshBasicMaterial({
+                        color: star.color,
+                        transparent: true,
+                        opacity: 0.3,
+                        side: THREE.BackSide
+                    });
+                    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                    starMesh.add(glow);
+                }
+                
+                starGroup.add(starMesh);
+            });
+            
+            // Добавляем дополнительные случайные звёзды для плотности
+            const randomStarGeometry = new THREE.BufferGeometry();
+            const starCount = 5000;
             const positions = new Float32Array(starCount * 3);
             const colors = new Float32Array(starCount * 3);
             const sizes = new Float32Array(starCount);
             
             for (let i = 0; i < starCount; i++) {
                 const i3 = i * 3;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const distance = 5000 + Math.random() * 10000;
                 
-                if (Math.random() < 0.7) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const distance = 500 + Math.random() * 3000;
-                    const height = (Math.random() - 0.5) * 200;
-                    
-                    positions[i3] = Math.cos(angle) * distance;
-                    positions[i3 + 1] = height;
-                    positions[i3 + 2] = Math.sin(angle) * distance;
-                } else {
-                    const theta = Math.random() * Math.PI * 2;
-                    const phi = Math.acos(2 * Math.random() - 1);
-                    const distance = 1000 + Math.random() * 2500;
-                    
-                    positions[i3] = distance * Math.sin(phi) * Math.cos(theta);
-                    positions[i3 + 1] = distance * Math.cos(phi);
-                    positions[i3 + 2] = distance * Math.sin(phi) * Math.sin(theta);
-                }
+                positions[i3] = distance * Math.sin(phi) * Math.cos(theta);
+                positions[i3 + 1] = distance * Math.cos(phi);
+                positions[i3 + 2] = distance * Math.sin(phi) * Math.sin(theta);
                 
                 const rand = Math.random();
                 if (rand < 0.7) {
@@ -300,26 +357,29 @@
                     colors[i3 + 2] = 1.0;
                 }
                 
-                sizes[i] = 0.5 + Math.random() * 2.5;
+                sizes[i] = 0.3 + Math.random() * 1.5;
             }
             
-            starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            starGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-            starGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+            randomStarGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            randomStarGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            randomStarGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
             
-            const starMaterial = new THREE.PointsMaterial({
-                size: 2,
+            const randomStarMaterial = new THREE.PointsMaterial({
+                size: 1.5,
                 vertexColors: true,
                 transparent: true,
-                opacity: 0.8,
+                opacity: 0.6,
                 blending: THREE.AdditiveBlending,
                 sizeAttenuation: true
             });
             
-            return new THREE.Points(starGeometry, starMaterial);
+            const randomStars = new THREE.Points(randomStarGeometry, randomStarMaterial);
+            starGroup.add(randomStars);
+            
+            return starGroup;
         }
 
-        scene.add(createStarField());
+        scene.add(createRealStarField());
 
         // Солнце
         const sunGeometry = new THREE.SphereGeometry(5, 32, 32);
@@ -340,16 +400,44 @@
         const glow = new THREE.Mesh(glowGeometry, glowMaterial);
         scene.add(glow);
 
-        // Данные планет с наклонами орбит
+        // Функция создания процедурной текстуры
+        function createPlanetTexture(baseColor, detailColor, size = 256) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Базовый цвет
+            ctx.fillStyle = `#${baseColor.toString(16).padStart(6, '0')}`;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Добавляем шум
+            for (let i = 0; i < 1000; i++) {
+                const x = Math.random() * size;
+                const y = Math.random() * size;
+                const r = Math.random() * 3;
+                ctx.fillStyle = `#${detailColor.toString(16).padStart(6, '0')}`;
+                ctx.globalAlpha = Math.random() * 0.5;
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+
+        // Данные планет
         const planetsData = [
-            { name: 'mercury', distance: 5.79, size: 0.3, color: 0x8c7853, speed: 4.09, tilt: 7.0, axialTilt: 0.034 },
-            { name: 'venus', distance: 10.82, size: 0.75, color: 0xffc649, speed: 1.62, tilt: 3.4, axialTilt: 177.4 },
-            { name: 'earth', distance: 14.96, size: 0.8, color: 0x4a90e2, speed: 1.0, tilt: 0.0, axialTilt: 23.4, moons: 1 },
-            { name: 'mars', distance: 22.79, size: 0.42, color: 0xe27b58, speed: 0.53, tilt: 1.9, axialTilt: 25.2, moons: 2 },
-            { name: 'jupiter', distance: 77.86, size: 4.5, color: 0xd4a373, speed: 0.084, tilt: 1.3, axialTilt: 3.1, moons: 4, bands: true },
-            { name: 'saturn', distance: 143.0, size: 3.8, color: 0xfad5a5, speed: 0.034, tilt: 2.5, axialTilt: 26.7, moons: 3, rings: true },
-            { name: 'uranus', distance: 287.0, size: 2.0, color: 0x4fd0e7, speed: 0.012, tilt: 0.8, axialTilt: 97.8 },
-            { name: 'neptune', distance: 450.0, size: 1.95, color: 0x4166f5, speed: 0.006, tilt: 1.8, axialTilt: 28.3 }
+            { name: 'mercury', distance: 5.79, size: 0.3, baseColor: 0x8c7853, detailColor: 0x6a5f43, speed: 4.09, tilt: 7.0, axialTilt: 0.034 },
+            { name: 'venus', distance: 10.82, size: 0.75, baseColor: 0xffc649, detailColor: 0xffb030, speed: 1.62, tilt: 3.4, axialTilt: 177.4 },
+            { name: 'earth', distance: 14.96, size: 0.8, baseColor: 0x4a90e2, detailColor: 0x2a7035, speed: 1.0, tilt: 0.0, axialTilt: 23.4, moons: 1 },
+            { name: 'mars', distance: 22.79, size: 0.42, baseColor: 0xe27b58, detailColor: 0xc45a38, speed: 0.53, tilt: 1.9, axialTilt: 25.2, moons: 2 },
+            { name: 'jupiter', distance: 77.86, size: 4.5, baseColor: 0xd4a373, detailColor: 0xb88a60, speed: 0.084, tilt: 1.3, axialTilt: 3.1, moons: 4, bands: true },
+            { name: 'saturn', distance: 143.0, size: 3.8, baseColor: 0xfad5a5, detailColor: 0xe0c090, speed: 0.034, tilt: 2.5, axialTilt: 26.7, moons: 3, rings: true },
+            { name: 'uranus', distance: 287.0, size: 2.0, baseColor: 0x4fd0e7, detailColor: 0x3ab0c7, speed: 0.012, tilt: 0.8, axialTilt: 97.8 },
+            { name: 'neptune', distance: 450.0, size: 1.95, baseColor: 0x4166f5, detailColor: 0x2050d5, speed: 0.006, tilt: 1.8, axialTilt: 28.3 },
+            { name: 'pluto', distance: 590.0, size: 0.18, baseColor: 0xccaa88, detailColor: 0xaa8866, speed: 0.004, tilt: 17.2, axialTilt: 122.5 }
         ];
 
         const planets = [];
@@ -363,7 +451,7 @@
                 const angle = (i / 128) * Math.PI * 2;
                 const x = Math.cos(angle) * data.distance;
                 const z = Math.sin(angle) * data.distance;
-                const y = Math.sin(angle) * data.distance * Math.sin(data.tilt * Math.PI / 180) * 0.2;
+                const y = Math.sin(angle) * data.distance * Math.sin(data.tilt * Math.PI / 180) * 0.3;
                 orbitPoints.push(new THREE.Vector3(x, y, z));
             }
             orbitGeometry.setFromPoints(orbitPoints);
@@ -372,20 +460,16 @@
             );
             scene.add(orbit);
             
-            // Планета с текстурой
+            // Планета с процедурной текстурой
             const planetGeometry = new THREE.SphereGeometry(data.size, 32, 32);
+            const texture = createPlanetTexture(data.baseColor, data.detailColor);
             const planetMaterial = new THREE.MeshStandardMaterial({ 
-                color: data.color,
-                emissive: data.color,
+                map: texture,
+                emissive: data.baseColor,
                 emissiveIntensity: 0.05,
                 roughness: 0.8,
-                metalness: 0.2
+                metalness: 0.1
             });
-            
-            // Добавляем полоски для Юпитера
-            if (data.bands) {
-                planetMaterial.roughness = 0.7;
-            }
             
             const planet = new THREE.Mesh(planetGeometry, planetMaterial);
             planet.rotation.z = data.axialTilt * Math.PI / 180;
@@ -452,7 +536,6 @@
             });
             const comet = new THREE.Mesh(cometGeometry, cometMaterial);
             
-            // Хвост кометы
             const tailGeometry = new THREE.ConeGeometry(0.5, 8, 8);
             const tailMaterial = new THREE.MeshBasicMaterial({
                 color: 0xaaddff,
@@ -503,7 +586,7 @@
                 const planet = planets.find(p => p.name === targetName);
                 if (planet) {
                     targetObj = planet.mesh;
-                    distance = planet.distance * 0.3;
+                    distance = Math.max(planet.distance * 0.15, planet.mesh.geometry.parameters.radius * 5);
                 }
             }
             
@@ -534,16 +617,17 @@
 
         function updateInfoBox(target) {
             const info = {
-                sun: { title: 'Sun', text: 'The Sun is a G-type main-sequence star. It contains 99.86% of the mass in the Solar System. Surface temperature: 5,500°C.' },
-                mercury: { title: 'Mercury', text: 'Smallest planet. No atmosphere. Temperature range: -173°C to 427°C. Heavily cratered surface.' },
-                venus: { title: 'Venus', text: 'Hottest planet (462°C). Thick CO₂ atmosphere. Rotates backwards. Volcanic surface.' },
-                earth: { title: 'Earth', text: 'Only known planet with life. 71% water surface. One natural satellite (Moon). Protective atmosphere.' },
-                mars: { title: 'Mars', text: 'Red planet due to iron oxide. Two small moons. Evidence of ancient water. Target for human exploration.' },
-                jupiter: { title: 'Jupiter', text: 'Largest planet. Gas giant. Great Red Spot storm. 79 known moons. Strong magnetic field.' },
-                saturn: { title: 'Saturn', text: 'Famous rings made of ice and rock. Gas giant. 82 known moons. Lowest density of all planets.' },
-                uranus: { title: 'Uranus', text: 'Ice giant. Tilted 97° on its side. Blue-green due to methane. 27 known moons.' },
-                neptune: { title: 'Neptune', text: 'Farthest planet. Ice giant. Strongest winds in solar system (2,100 km/h). 14 known moons.' },
-                overview: { title: 'Solar System', text: 'Click on any planet to fly there and explore.<br><br>Our solar system formed 4.6 billion years ago from a giant molecular cloud.' }
+                sun: { title: 'Sun', text: 'The Sun is a G-type main-sequence star. It contains 99.86% of the mass in the Solar System. Surface temperature: 5,500°C. Distance shown to brightest stars like Sirius (8.6 ly) and Alpha Centauri (4.37 ly).' },
+                mercury: { title: 'Mercury', text: 'Smallest planet. No atmosphere. Temperature range: -173°C to 427°C. Heavily cratered surface. Orbital inclination: 7°.' },
+                venus: { title: 'Venus', text: 'Hottest planet (462°C). Thick CO₂ atmosphere. Rotates backwards. Volcanic surface. Orbital inclination: 3.4°.' },
+                earth: { title: 'Earth', text: 'Only known planet with life. 71% water surface. One natural satellite (Moon). Protective atmosphere. Orbital plane is reference (0°).' },
+                mars: { title: 'Mars', text: 'Red planet due to iron oxide. Two small moons (Phobos & Deimos). Evidence of ancient water. Orbital inclination: 1.9°.' },
+                jupiter: { title: 'Jupiter', text: 'Largest planet. Gas giant. Great Red Spot storm. 79 known moons (4 major shown). Strong magnetic field. Orbital inclination: 1.3°.' },
+                saturn: { title: 'Saturn', text: 'Famous rings made of ice and rock. Gas giant. 82 known moons. Lowest density of all planets. Orbital inclination: 2.5°.' },
+                uranus: { title: 'Uranus', text: 'Ice giant. Tilted 97° on its side. Blue-green due to methane. 27 known moons. Orbital inclination: 0.8°.' },
+                neptune: { title: 'Neptune', text: 'Farthest major planet. Ice giant. Strongest winds in solar system (2,100 km/h). 14 known moons. Orbital inclination: 1.8°.' },
+                pluto: { title: 'Pluto (dwarf planet)', text: 'Dwarf planet in Kuiper belt. Heart-shaped Tombaugh Regio. Moon Charon. Highly eccentric orbit. Orbital inclination: 17.2° (most tilted!).' },
+                overview: { title: 'Solar System', text: 'Click on any planet to fly there. Real stars visible: Sirius, Canopus, Alpha Centauri, Vega, Arcturus, and 45+ more from star catalog.<br><br>Distances and orbits shown to scale (compressed).' }
             };
             
             const data = info[target] || info.overview;
@@ -551,7 +635,6 @@
             document.querySelector('.info-text').innerHTML = data.text;
         }
 
-        // Обработчики событий
         document.querySelectorAll('.planet-item').forEach(item => {
             item.addEventListener('click', () => {
                 flyToTarget(item.dataset.planet);
@@ -585,10 +668,9 @@
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
             cameraControl.distance += e.deltaY * 0.1;
-            cameraControl.distance = Math.max(50, Math.min(800, cameraControl.distance));
+            cameraControl.distance = Math.max(50, Math.min(1000, cameraControl.distance));
         });
 
-        // Анимация
         let time = 0;
         
         function animate() {
@@ -596,18 +678,16 @@
             
             time += 0.001;
             
-            // Солнце
             sun.rotation.y += 0.001;
             glow.rotation.y -= 0.0005;
             const pulse = 1 + Math.sin(time * 2) * 0.05;
             glow.scale.set(pulse, pulse, pulse);
             
-            // Планеты
             planets.forEach(planet => {
                 planet.angle += planet.speed * 0.001;
                 const x = Math.cos(planet.angle) * planet.distance;
                 const z = Math.sin(planet.angle) * planet.distance;
-                const y = Math.sin(planet.angle) * planet.distance * Math.sin(planet.tilt * Math.PI / 180) * 0.2;
+                const y = Math.sin(planet.angle) * planet.distance * Math.sin(planet.tilt * Math.PI / 180) * 0.3;
                 
                 planet.mesh.position.set(x, y, z);
                 planet.mesh.rotation.y += 0.01;
@@ -617,7 +697,6 @@
                 }
             });
             
-            // Спутники
             moons.forEach(moon => {
                 moon.angle += moon.speed * 0.02;
                 const x = Math.cos(moon.angle) * moon.distance;
@@ -627,7 +706,6 @@
                 moon.mesh.position.z += z;
             });
             
-            // Кометы
             comets.forEach(comet => {
                 comet.angle += comet.speed * 0.001;
                 const r = comet.distance * (1 - comet.eccentricity * Math.cos(comet.angle));
@@ -639,7 +717,6 @@
                 comet.mesh.lookAt(0, 0, 0);
             });
             
-            // Камера
             if (cameraState.mode === 'transition') {
                 cameraState.transitionProgress += 0.02;
                 if (cameraState.transitionProgress >= 1) {
