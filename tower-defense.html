@@ -401,19 +401,27 @@
             const currentGun = guns[currentGunIndex];
             currentGunIndex = (currentGunIndex + 1) % guns.length;
             
-            const bulletGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+            const bulletGeometry = new THREE.SphereGeometry(0.25, 8, 8);
             const bulletMaterial = new THREE.MeshBasicMaterial({
                 color: 0xffff00,
                 emissive: 0xffff00,
                 emissiveIntensity: 1
             });
             const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
-            bullet.position.copy(currentGun.getWorldPosition(new THREE.Vector3()));
+            const gunWorldPos = currentGun.getWorldPosition(new THREE.Vector3());
+            
+            // Add point light to bullet for better visibility
+            const bulletLight = new THREE.PointLight(0xffff00, 1, 3);
+            bullet.add(bulletLight);
+            
+            // Set bullet at enemy height level (0.5)
+            bullet.position.set(gunWorldPos.x, 0.5, gunWorldPos.z);
             scene.add(bullet);
             
-            // Shoot towards mouse position
-            const direction = mouseWorldPos.clone().sub(bullet.position);
-            direction.y = 0;
+            // Shoot towards mouse position at same height
+            const targetPos = mouseWorldPos.clone();
+            targetPos.y = 0.5;
+            const direction = targetPos.sub(bullet.position);
             direction.normalize();
             
             // Add muzzle flash
@@ -424,7 +432,7 @@
                 opacity: 0.8
             });
             const flash = new THREE.Mesh(flashGeometry, flashMaterial);
-            flash.position.copy(bullet.position);
+            flash.position.copy(gunWorldPos);
             scene.add(flash);
             setTimeout(() => scene.remove(flash), 50);
             
@@ -442,16 +450,44 @@
             if (now - lastMissile < 5000) return;
             lastMissile = now;
             
-            const missileGeometry = new THREE.ConeGeometry(0.2, 1, 8);
-            const missileMaterial = new THREE.MeshStandardMaterial({
+            // Create missile body (cylinder is better for direction visualization)
+            const missileGroup = new THREE.Group();
+            
+            const bodyGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1.2, 8);
+            const bodyMaterial = new THREE.MeshStandardMaterial({
                 color: 0xff0000,
                 emissive: 0xff0000,
                 emissiveIntensity: 0.8
             });
-            const missile = new THREE.Mesh(missileGeometry, missileMaterial);
-            missile.position.set(0, 3, 0);
-            missile.rotation.x = -Math.PI / 2;
-            scene.add(missile);
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.rotation.x = Math.PI / 2;
+            missileGroup.add(body);
+            
+            // Nose cone
+            const noseGeometry = new THREE.ConeGeometry(0.15, 0.4, 8);
+            const nose = new THREE.Mesh(noseGeometry, bodyMaterial);
+            nose.rotation.x = -Math.PI / 2;
+            nose.position.z = 0.8;
+            missileGroup.add(nose);
+            
+            // Flames
+            const flameGeometry = new THREE.ConeGeometry(0.2, 0.6, 8);
+            const flameMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff6600,
+                transparent: true,
+                opacity: 0.7
+            });
+            const flame = new THREE.Mesh(flameGeometry, flameMaterial);
+            flame.rotation.x = Math.PI / 2;
+            flame.position.z = -0.9;
+            missileGroup.add(flame);
+            
+            // Add light to missile
+            const missileLight = new THREE.PointLight(0xff3300, 2, 8);
+            missileGroup.add(missileLight);
+            
+            missileGroup.position.set(0, 1, 0);
+            scene.add(missileGroup);
             
             // Find target
             let target = null;
@@ -466,7 +502,7 @@
             
             if (target) {
                 missiles.push({
-                    mesh: missile,
+                    mesh: missileGroup,
                     target: target,
                     speed: 0.3
                 });
@@ -639,8 +675,15 @@
                 let hit = false;
                 for (let j = enemies.length - 1; j >= 0; j--) {
                     const enemy = enemies[j];
-                    if (bullet.mesh.position.distanceTo(enemy.mesh.position) < 0.7) {
+                    const distance = bullet.mesh.position.distanceTo(enemy.mesh.position);
+                    
+                    // Hit detection - consider enemy size
+                    const enemySize = 0.5 + wave * 0.05;
+                    if (distance < enemySize + 0.3) {
                         enemy.hp -= bullet.damage;
+                        
+                        // Small hit effect
+                        createExplosion(bullet.mesh.position.x, bullet.mesh.position.y, bullet.mesh.position.z, 0xffff00, 5);
                         
                         if (enemy.hp <= 0) {
                             score += 10 * wave;
@@ -670,25 +713,46 @@
                 if (missile.target && enemies.includes(missile.target)) {
                     const direction = missile.target.mesh.position.clone().sub(missile.mesh.position).normalize();
                     missile.mesh.position.add(direction.multiplyScalar(missile.speed));
-                    missile.mesh.lookAt(missile.target.mesh.position);
+                    
+                    // Proper orientation - point towards target
+                    const targetPos = missile.target.mesh.position.clone();
+                    missile.mesh.lookAt(targetPos);
+                    
+                    // Add smoke trail
+                    if (Math.random() > 0.5) {
+                        const trailGeometry = new THREE.SphereGeometry(0.15, 4, 4);
+                        const trailMaterial = new THREE.MeshBasicMaterial({
+                            color: 0xff6600,
+                            transparent: true,
+                            opacity: 0.6
+                        });
+                        const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+                        trail.position.copy(missile.mesh.position);
+                        trail.life = 0.5;
+                        trail.velocity = new THREE.Vector3(0, 0, 0);
+                        scene.add(trail);
+                        particles.push(trail);
+                    }
                     
                     // Check hit
                     if (missile.mesh.position.distanceTo(missile.target.mesh.position) < 1) {
                         // Splash damage
-                        enemies.forEach(e => {
-                            if (e.mesh.position.distanceTo(missile.mesh.position) < 5) {
+                        const explosionPos = missile.mesh.position.clone();
+                        for (let j = enemies.length - 1; j >= 0; j--) {
+                            const e = enemies[j];
+                            if (e.mesh.position.distanceTo(explosionPos) < 5) {
                                 e.hp -= towerDamage * 3;
                                 if (e.hp <= 0) {
                                     score += 10 * wave;
                                     kills++;
                                     createExplosion(e.mesh.position.x, e.mesh.position.y, e.mesh.position.z, e.mesh.material.color, 15);
                                     scene.remove(e.mesh);
-                                    enemies.splice(enemies.indexOf(e), 1);
+                                    enemies.splice(j, 1);
                                 }
                             }
-                        });
+                        }
                         
-                        createExplosion(missile.mesh.position.x, missile.mesh.position.y, missile.mesh.position.z, 0xff0000, 40);
+                        createExplosion(explosionPos.x, explosionPos.y, explosionPos.z, 0xff0000, 40);
                         scene.remove(missile.mesh);
                         missiles.splice(i, 1);
                     }
