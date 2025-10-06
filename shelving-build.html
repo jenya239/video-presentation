@@ -164,50 +164,56 @@
         const cutProfiles = [];
         const cutPlywood = [];
         
-        // Frame structure definition
-        // Each profile knows: type, length, start pos, end pos
-        const frameStructure = [
-            // 4 vertical posts (2m) - corners of the frame
-            { type: 'vertical', length: 2.0, 
-              start: [-shelfWidth/2, 0, -shelfDepth/2], 
-              end: [-shelfWidth/2, shelfHeight, -shelfDepth/2] },  // Front-left corner
-            { type: 'vertical', length: 2.0, 
-              start: [shelfWidth/2, 0, -shelfDepth/2], 
-              end: [shelfWidth/2, shelfHeight, -shelfDepth/2] },   // Front-right corner
-            { type: 'vertical', length: 2.0, 
-              start: [-shelfWidth/2, 0, shelfDepth/2], 
-              end: [-shelfWidth/2, shelfHeight, shelfDepth/2] },   // Back-left corner
-            { type: 'vertical', length: 2.0, 
-              start: [shelfWidth/2, 0, shelfDepth/2], 
-              end: [shelfWidth/2, shelfHeight, shelfDepth/2] },    // Back-right corner
-            
-            // Bottom depth braces (0.5m) - connect front to back
-            { type: 'depth', length: 0.5, 
-              start: [-shelfWidth/2, 0, -shelfDepth/2], 
-              end: [-shelfWidth/2, 0, shelfDepth/2] },             // Left bottom
-            { type: 'depth', length: 0.5, 
-              start: [shelfWidth/2, 0, -shelfDepth/2], 
-              end: [shelfWidth/2, 0, shelfDepth/2] },              // Right bottom
-            
-            // Top depth braces (0.5m)
-            { type: 'depth', length: 0.5, 
-              start: [-shelfWidth/2, shelfHeight, -shelfDepth/2], 
-              end: [-shelfWidth/2, shelfHeight, shelfDepth/2] },   // Left top
-            { type: 'depth', length: 0.5, 
-              start: [shelfWidth/2, shelfHeight, -shelfDepth/2], 
-              end: [shelfWidth/2, shelfHeight, shelfDepth/2] },    // Right top
-            
-            // Bottom width braces (2m) - not needed, too long
-            // Top width braces (2m) - not needed, too long
-            
-            // Middle shelf supports (0.5m)
-            { type: 'depth', length: 0.5, 
-              start: [-shelfWidth/2, shelfHeight/2, -shelfDepth/2], 
-              end: [-shelfWidth/2, shelfHeight/2, shelfDepth/2] }, // Left middle
-            { type: 'depth', length: 0.5, 
-              start: [shelfWidth/2, shelfHeight/2, -shelfDepth/2], 
-              end: [shelfWidth/2, shelfHeight/2, shelfDepth/2] }   // Right middle
+        // Complete frame structure with all parts calculated upfront
+        const frameStructure = [];
+        
+        // Calculate shelf levels (3 shelves: bottom, middle, top)
+        const shelfLevels = [
+            0.5,           // Bottom shelf at 0.5m
+            1.0,           // Middle shelf at 1.0m  
+            1.5            // Top shelf at 1.5m
         ];
+        
+        // 1. Four vertical corner posts (2m each)
+        frameStructure.push(
+            { name: 'Post FL', length: 2.0, start: [-shelfWidth/2, 0, -shelfDepth/2], end: [-shelfWidth/2, shelfHeight, -shelfDepth/2] },
+            { name: 'Post FR', length: 2.0, start: [shelfWidth/2, 0, -shelfDepth/2], end: [shelfWidth/2, shelfHeight, -shelfDepth/2] },
+            { name: 'Post BL', length: 2.0, start: [-shelfWidth/2, 0, shelfDepth/2], end: [-shelfWidth/2, shelfHeight, shelfDepth/2] },
+            { name: 'Post BR', length: 2.0, start: [shelfWidth/2, 0, shelfDepth/2], end: [shelfWidth/2, shelfHeight, shelfDepth/2] }
+        );
+        
+        // 2. Bottom frame (0.5m depth braces + 2m width braces)
+        frameStructure.push(
+            { name: 'Bottom L', length: 0.5, start: [-shelfWidth/2, 0, -shelfDepth/2], end: [-shelfWidth/2, 0, shelfDepth/2] },
+            { name: 'Bottom R', length: 0.5, start: [shelfWidth/2, 0, -shelfDepth/2], end: [shelfWidth/2, 0, shelfDepth/2] },
+            { name: 'Bottom F', length: 2.0, start: [-shelfWidth/2, 0, -shelfDepth/2], end: [shelfWidth/2, 0, -shelfDepth/2] },
+            { name: 'Bottom B', length: 2.0, start: [-shelfWidth/2, 0, shelfDepth/2], end: [shelfWidth/2, 0, shelfDepth/2] }
+        );
+        
+        // 3. Shelf support braces at each level (0.5m depth on left and right)
+        shelfLevels.forEach((y, i) => {
+            frameStructure.push(
+                { name: `Shelf${i+1} L`, length: 0.5, start: [-shelfWidth/2, y, -shelfDepth/2], end: [-shelfWidth/2, y, shelfDepth/2] },
+                { name: `Shelf${i+1} R`, length: 0.5, start: [shelfWidth/2, y, -shelfDepth/2], end: [shelfWidth/2, y, shelfDepth/2] }
+            );
+        });
+        
+        // 4. Top frame (0.5m depth braces + 2m width braces)
+        frameStructure.push(
+            { name: 'Top L', length: 0.5, start: [-shelfWidth/2, shelfHeight, -shelfDepth/2], end: [-shelfWidth/2, shelfHeight, shelfDepth/2] },
+            { name: 'Top R', length: 0.5, start: [shelfWidth/2, shelfHeight, -shelfDepth/2], end: [shelfWidth/2, shelfHeight, shelfDepth/2] },
+            { name: 'Top F', length: 2.0, start: [-shelfWidth/2, shelfHeight, -shelfDepth/2], end: [shelfWidth/2, shelfHeight, -shelfDepth/2] },
+            { name: 'Top B', length: 2.0, start: [-shelfWidth/2, shelfHeight, shelfDepth/2], end: [shelfWidth/2, shelfHeight, shelfDepth/2] }
+        );
+        
+        // Plywood shelves definition
+        const shelfStructure = shelfLevels.map((y, i) => ({
+            name: `Shelf ${i+1}`,
+            width: shelfWidth,
+            thickness: 0.018,
+            depth: shelfDepth,
+            position: { x: 0, y: y + 0.009, z: 0 } // Just above support beams
+        }));
         
         // Debug: visualize frame structure with thin lines
         const debugLines = new THREE.Group();
@@ -227,36 +233,40 @@
         });
         scene.add(debugLines);
         
+        // Calculate total parts for description
+        const totalProfiles = frameStructure.length;
+        const totalShelves = shelfStructure.length;
+        
         // Stages
         const stages = [
             { 
                 name: 'Cutting Metal Profiles',
-                desc: 'Angle grinder cutting 6m profile into pieces',
-                duration: 180,
+                desc: `Cutting ${totalProfiles} pieces from 6m profiles`,
+                duration: 200,
                 action: cutProfiles_stage
             },
             { 
                 name: 'Cutting Plywood',
-                desc: 'Circular saw cutting 1 shelf 2000×500mm',
+                desc: `Cutting ${totalShelves} shelves 2000×500mm`,
                 duration: 120,
                 action: cutPlywood_stage
             },
             { 
                 name: 'Welding Frame',
-                desc: 'MIG welding metal frame joints',
-                duration: 200,
+                desc: `Welding ${totalProfiles} frame joints`,
+                duration: 250,
                 action: weldFrame_stage
             },
             { 
                 name: 'Painting Metal',
-                desc: 'Spray painting metal parts',
-                duration: 150,
+                desc: 'Spray painting all metal parts',
+                duration: 180,
                 action: paintMetal_stage
             },
             { 
                 name: 'Final Assembly',
-                desc: 'Installing shelf on frame',
-                duration: 100,
+                desc: `Installing ${totalShelves} shelves on frame`,
+                duration: 120,
                 action: finalAssembly_stage
             }
         ];
@@ -407,10 +417,13 @@
                 createParticle(originalPlywood.position.x, originalPlywood.position.y, originalPlywood.position.z, 0xd2b48c, 0.02);
             }
             
-            // Only 1 shelf needed
-            if (progress >= 0.5 && cutPlywood.length === 0) {
-                createCutPlywood(0);
-            }
+            // Cut shelves based on shelfStructure
+            shelfStructure.forEach((shelfSpec, i) => {
+                const cutPoint = (i + 1) / (shelfStructure.length + 1);
+                if (progress >= cutPoint && cutPlywood.length <= i) {
+                    createCutPlywood(shelfSpec, i);
+                }
+            });
             
             if (progress >= 1) {
                 scene.remove(originalPlywood);
@@ -418,18 +431,27 @@
             }
         }
         
-        function createCutPlywood(index) {
+        function createCutPlywood(shelfSpec, index) {
             // Plywood sheets lie flat: width x thickness x depth
-            const geometry = new THREE.BoxGeometry(shelfWidth, 0.018, shelfDepth);
+            const geometry = new THREE.BoxGeometry(shelfSpec.width, shelfSpec.thickness, shelfSpec.depth);
             const material = new THREE.MeshStandardMaterial({ 
                 color: plywoodColor,
                 roughness: 0.7
             });
             const mesh = new THREE.Mesh(geometry, material);
-            mesh.position.set(1.5, 0.3, 0.5 + index * 0.3);
+            
+            // Initial position - scattered to the side
+            mesh.position.set(1.5 + (index % 2) * 0.5, 0.3, 0.5 + Math.floor(index / 2) * 0.4);
+            
+            // Store target position
+            mesh.userData.targetPosition = new THREE.Vector3(
+                shelfSpec.position.x,
+                shelfSpec.position.y,
+                shelfSpec.position.z
+            );
+            mesh.userData.shelfSpec = shelfSpec;
+            
             mesh.castShadow = true;
-            mesh.userData.cutPiece = true;
-            mesh.userData.shelfIndex = index;
             scene.add(mesh);
             cutPlywood.push(mesh);
         }
@@ -494,22 +516,15 @@
         function finalAssembly_stage() {
             const progress = stageProgress / stages[4].duration;
             
-            // Install shelves - they lie flat horizontally at middle height
-            // Y position matches the middle supports at shelfHeight/2
-            const shelfY = shelfHeight / 2 + 0.009; // Just above the middle support beam
-            
-            cutPlywood.forEach((shelf, i) => {
-                // Only 1 shelf in the middle
-                if (i === 0) {
-                    shelf.position.x += (0 - shelf.position.x) * 0.03 * speed;
-                    shelf.position.y += (shelfY - shelf.position.y) * 0.03 * speed;
-                    shelf.position.z += (0 - shelf.position.z) * 0.03 * speed;
-                    
-                    // Keep horizontal (no rotation)
-                    shelf.rotation.x += (0 - shelf.rotation.x) * 0.03 * speed;
-                    shelf.rotation.y += (0 - shelf.rotation.y) * 0.03 * speed;
-                    shelf.rotation.z += (0 - shelf.rotation.z) * 0.03 * speed;
-                }
+            // Install all shelves to their target positions
+            cutPlywood.forEach((shelf) => {
+                const target = shelf.userData.targetPosition;
+                shelf.position.lerp(target, 0.03 * speed);
+                
+                // Keep horizontal (no rotation)
+                shelf.rotation.x += (0 - shelf.rotation.x) * 0.03 * speed;
+                shelf.rotation.y += (0 - shelf.rotation.y) * 0.03 * speed;
+                shelf.rotation.z += (0 - shelf.rotation.z) * 0.03 * speed;
             });
         }
         
