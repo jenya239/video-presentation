@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower Defense 3D</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Courier New', monospace;
+        }
+        #canvas { display: block; }
+        
+        .hud {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            border: 3px solid #00ff88;
+            font-size: 20px;
+            color: #00ff88;
+            min-width: 300px;
+        }
+        .hud-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 12px 0;
+            font-size: 22px;
+        }
+        .hud-label { color: #00ffff; }
+        .hud-value {
+            color: #ff3366;
+            font-weight: bold;
+            font-size: 28px;
+        }
+        .hud h2 {
+            margin: 0 0 15px 0;
+            font-size: 32px;
+            color: #00ff88;
+            text-shadow: 0 0 15px #00ff88;
+            text-align: center;
+        }
+        
+        .tower-info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            border: 3px solid #ff3366;
+            font-size: 18px;
+            color: #ff3366;
+            min-width: 280px;
+        }
+        .tower-info h3 {
+            margin: 0 0 15px 0;
+            font-size: 26px;
+            text-align: center;
+            text-shadow: 0 0 10px #ff3366;
+        }
+        .tower-stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 20px;
+        }
+        .tower-stat-value {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 22px;
+        }
+        
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 50px 80px;
+            border-radius: 20px;
+            border: 4px solid #ff3366;
+            text-align: center;
+            display: none;
+            z-index: 200;
+        }
+        .game-over h1 {
+            font-size: 64px;
+            color: #ff3366;
+            margin-bottom: 30px;
+            text-shadow: 0 0 20px #ff3366;
+        }
+        .game-over .stats {
+            font-size: 28px;
+            color: #00ff88;
+            margin: 20px 0;
+        }
+        .game-over button {
+            font-size: 28px;
+            padding: 20px 60px;
+            background: #00ff88;
+            border: none;
+            border-radius: 10px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            margin-top: 30px;
+        }
+        .game-over button:hover {
+            background: #00ffaa;
+        }
+        
+        .wave-alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 51, 102, 0.95);
+            padding: 30px 60px;
+            border-radius: 15px;
+            border: 3px solid #fff;
+            font-size: 48px;
+            color: #fff;
+            font-weight: bold;
+            text-shadow: 0 0 20px #000;
+            display: none;
+            z-index: 150;
+            animation: pulse 0.5s ease-in-out;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="hud">
+        <h2>DEFENSE</h2>
+        <div class="hud-item">
+            <span class="hud-label">Wave:</span>
+            <span class="hud-value" id="wave">1</span>
+        </div>
+        <div class="hud-item">
+            <span class="hud-label">Score:</span>
+            <span class="hud-value" id="score">0</span>
+        </div>
+        <div class="hud-item">
+            <span class="hud-label">Enemies:</span>
+            <span class="hud-value" id="enemies">0</span>
+        </div>
+    </div>
+    
+    <div class="tower-info">
+        <h3>TOWER STATUS</h3>
+        <div class="tower-stat">
+            <span>Level:</span>
+            <span class="tower-stat-value" id="tower-level">1</span>
+        </div>
+        <div class="tower-stat">
+            <span>Damage:</span>
+            <span class="tower-stat-value" id="tower-damage">10</span>
+        </div>
+        <div class="tower-stat">
+            <span>Fire Rate:</span>
+            <span class="tower-stat-value" id="tower-rate">5/s</span>
+        </div>
+        <div class="tower-stat">
+            <span>Missiles:</span>
+            <span class="tower-stat-value" id="tower-missiles">Ready</span>
+        </div>
+    </div>
+    
+    <div class="game-over" id="game-over">
+        <h1>TOWER DESTROYED</h1>
+        <div class="stats">
+            <div>Wave Reached: <span id="final-wave">0</span></div>
+            <div>Score: <span id="final-score">0</span></div>
+            <div>Enemies Killed: <span id="final-kills">0</span></div>
+        </div>
+        <button onclick="restartGame()">REBUILD TOWER</button>
+    </div>
+    
+    <div class="wave-alert" id="wave-alert">WAVE 1</div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        scene.fog = new THREE.Fog(0x000000, 30, 80);
+        
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        camera.position.set(0, 25, 30);
+        camera.lookAt(0, 0, 0);
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x202020, 0.5);
+        scene.add(ambientLight);
+        
+        const mainLight = new THREE.PointLight(0x00ff88, 2, 100);
+        mainLight.position.set(0, 20, 0);
+        scene.add(mainLight);
+        
+        // Grid
+        const gridHelper = new THREE.GridHelper(60, 30, 0x00ff88, 0x003322);
+        scene.add(gridHelper);
+        
+        // Tower in center
+        const towerGeometry = new THREE.CylinderGeometry(1, 1.5, 3, 6);
+        const towerMaterial = new THREE.MeshStandardMaterial({
+            color: 0x00ff88,
+            emissive: 0x00ff88,
+            emissiveIntensity: 0.5,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const tower = new THREE.Mesh(towerGeometry, towerMaterial);
+        tower.position.y = 1.5;
+        scene.add(tower);
+        
+        // Tower gun
+        const gunGeometry = new THREE.CylinderGeometry(0.2, 0.3, 2, 8);
+        const gunMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff3366,
+            emissive: 0xff3366,
+            emissiveIntensity: 0.4
+        });
+        const gun = new THREE.Mesh(gunGeometry, gunMaterial);
+        gun.rotation.z = Math.PI / 2;
+        gun.position.y = 2;
+        tower.add(gun);
+        
+        // Game state
+        let wave = 1;
+        let score = 0;
+        let kills = 0;
+        let towerLevel = 1;
+        let towerHP = 100;
+        let towerDamage = 10;
+        let fireRate = 5;
+        let missileReady = true;
+        let gameRunning = true;
+        
+        const enemies = [];
+        const bullets = [];
+        const missiles = [];
+        const particles = [];
+        
+        // Spawn enemy
+        function spawnEnemy() {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 30;
+            const x = Math.cos(angle) * distance;
+            const z = Math.sin(angle) * distance;
+            
+            const enemySize = 0.5 + wave * 0.05;
+            const enemyGeometry = new THREE.BoxGeometry(enemySize, enemySize, enemySize);
+            const enemyColor = new THREE.Color().setHSL((wave * 0.1) % 1, 0.8, 0.5);
+            const enemyMaterial = new THREE.MeshStandardMaterial({
+                color: enemyColor,
+                emissive: enemyColor,
+                emissiveIntensity: 0.6
+            });
+            
+            const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
+            enemy.position.set(x, enemySize / 2, z);
+            scene.add(enemy);
+            
+            enemies.push({
+                mesh: enemy,
+                hp: 50 + wave * 20,
+                maxHP: 50 + wave * 20,
+                speed: 0.05 + wave * 0.005,
+                damage: 5 + wave * 2
+            });
+        }
+        
+        // Spawn wave
+        function spawnWave() {
+            const enemyCount = 5 + wave * 3;
+            const spawnInterval = 200;
+            
+            // Show wave alert
+            const alert = document.getElementById('wave-alert');
+            alert.textContent = `WAVE ${wave}`;
+            alert.style.display = 'block';
+            setTimeout(() => alert.style.display = 'none', 2000);
+            
+            for (let i = 0; i < enemyCount; i++) {
+                setTimeout(() => {
+                    if (gameRunning) spawnEnemy();
+                }, i * spawnInterval);
+            }
+        }
+        
+        // Shoot bullet
+        let lastShot = 0;
+        function shootBullet(targetPos) {
+            const now = Date.now();
+            if (now - lastShot < 1000 / fireRate) return;
+            lastShot = now;
+            
+            const bulletGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+            const bulletMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffff00,
+                emissive: 0xffff00,
+                emissiveIntensity: 1
+            });
+            const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+            bullet.position.copy(gun.getWorldPosition(new THREE.Vector3()));
+            scene.add(bullet);
+            
+            const direction = targetPos.clone().sub(bullet.position).normalize();
+            
+            bullets.push({
+                mesh: bullet,
+                velocity: direction.multiplyScalar(0.5),
+                damage: towerDamage
+            });
+        }
+        
+        // Launch missile
+        let lastMissile = 0;
+        function launchMissile() {
+            const now = Date.now();
+            if (now - lastMissile < 5000) return;
+            lastMissile = now;
+            
+            const missileGeometry = new THREE.ConeGeometry(0.2, 1, 8);
+            const missileMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff0000,
+                emissive: 0xff0000,
+                emissiveIntensity: 0.8
+            });
+            const missile = new THREE.Mesh(missileGeometry, missileMaterial);
+            missile.position.set(0, 3, 0);
+            missile.rotation.x = -Math.PI / 2;
+            scene.add(missile);
+            
+            // Find target
+            let target = null;
+            let maxDistance = 0;
+            enemies.forEach(e => {
+                const dist = e.mesh.position.distanceTo(tower.position);
+                if (dist > maxDistance) {
+                    maxDistance = dist;
+                    target = e;
+                }
+            });
+            
+            if (target) {
+                missiles.push({
+                    mesh: missile,
+                    target: target,
+                    speed: 0.3
+                });
+            }
+        }
+        
+        // Create explosion particles
+        function createExplosion(x, y, z, color, count = 30) {
+            for (let i = 0; i < count; i++) {
+                const particleGeometry = new THREE.SphereGeometry(0.1, 4, 4);
+                const particleMaterial = new THREE.MeshBasicMaterial({ color });
+                const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                particle.position.set(x, y, z);
+                
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 0.2 + 0.1;
+                particle.velocity = new THREE.Vector3(
+                    Math.cos(angle) * speed,
+                    Math.random() * 0.15,
+                    Math.sin(angle) * speed
+                );
+                particle.life = 1;
+                
+                scene.add(particle);
+                particles.push(particle);
+            }
+        }
+        
+        // Upgrade tower
+        function upgradeTower() {
+            towerLevel++;
+            towerDamage += 5;
+            fireRate += 0.5;
+            
+            tower.scale.multiplyScalar(1.05);
+            towerMaterial.emissiveIntensity = Math.min(1, 0.5 + towerLevel * 0.05);
+            
+            // Visual upgrade effect
+            createExplosion(0, 1.5, 0, 0x00ff88, 50);
+            
+            updateUI();
+        }
+        
+        function updateUI() {
+            document.getElementById('wave').textContent = wave;
+            document.getElementById('score').textContent = score;
+            document.getElementById('enemies').textContent = enemies.length;
+            document.getElementById('tower-level').textContent = towerLevel;
+            document.getElementById('tower-damage').textContent = towerDamage;
+            document.getElementById('tower-rate').textContent = fireRate.toFixed(1) + '/s';
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('final-wave').textContent = wave;
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('final-kills').textContent = kills;
+            document.getElementById('game-over').style.display = 'block';
+        }
+        
+        function restartGame() {
+            // Clear
+            enemies.forEach(e => scene.remove(e.mesh));
+            bullets.forEach(b => scene.remove(b.mesh));
+            missiles.forEach(m => scene.remove(m.mesh));
+            particles.forEach(p => scene.remove(p));
+            
+            enemies.length = 0;
+            bullets.length = 0;
+            missiles.length = 0;
+            particles.length = 0;
+            
+            wave = 1;
+            score = 0;
+            kills = 0;
+            towerLevel = 1;
+            towerHP = 100;
+            towerDamage = 10;
+            fireRate = 5;
+            gameRunning = true;
+            
+            tower.scale.set(1, 1, 1);
+            towerMaterial.emissiveIntensity = 0.5;
+            
+            document.getElementById('game-over').style.display = 'none';
+            updateUI();
+            spawnWave();
+        }
+        
+        // Game loop
+        let time = 0;
+        let waveTimer = 0;
+        let upgradeTimer = 0;
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (!gameRunning) {
+                renderer.render(scene, camera);
+                return;
+            }
+            
+            time += 0.016;
+            waveTimer += 0.016;
+            upgradeTimer += 0.016;
+            
+            // Tower rotation
+            tower.rotation.y += 0.02;
+            
+            // Auto upgrade every 20 seconds
+            if (upgradeTimer > 20) {
+                upgradeTower();
+                upgradeTimer = 0;
+            }
+            
+            // Next wave when all enemies dead
+            if (enemies.length === 0 && waveTimer > 5) {
+                wave++;
+                waveTimer = 0;
+                spawnWave();
+            }
+            
+            // Shoot at nearest enemy
+            if (enemies.length > 0) {
+                let nearest = enemies[0];
+                let minDist = nearest.mesh.position.distanceTo(tower.position);
+                
+                enemies.forEach(e => {
+                    const dist = e.mesh.position.distanceTo(tower.position);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearest = e;
+                    }
+                });
+                
+                gun.lookAt(nearest.mesh.position);
+                shootBullet(nearest.mesh.position);
+            }
+            
+            // Launch missile periodically
+            if (Date.now() - lastMissile >= 5000 && enemies.length > 3) {
+                launchMissile();
+            }
+            
+            // Update enemies
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                const direction = tower.position.clone().sub(enemy.mesh.position);
+                direction.y = 0;
+                direction.normalize();
+                
+                enemy.mesh.position.add(direction.multiplyScalar(enemy.speed));
+                enemy.mesh.rotation.y += 0.05;
+                
+                // Check if reached tower
+                if (enemy.mesh.position.distanceTo(tower.position) < 2) {
+                    towerHP -= enemy.damage;
+                    createExplosion(enemy.mesh.position.x, enemy.mesh.position.y, enemy.mesh.position.z, 0xff3366, 20);
+                    scene.remove(enemy.mesh);
+                    enemies.splice(i, 1);
+                    
+                    if (towerHP <= 0) {
+                        gameOver();
+                    }
+                }
+            }
+            
+            // Update bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                bullet.mesh.position.add(bullet.velocity);
+                
+                // Check collision with enemies
+                let hit = false;
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    if (bullet.mesh.position.distanceTo(enemy.mesh.position) < 0.7) {
+                        enemy.hp -= bullet.damage;
+                        
+                        if (enemy.hp <= 0) {
+                            score += 10 * wave;
+                            kills++;
+                            createExplosion(enemy.mesh.position.x, enemy.mesh.position.y, enemy.mesh.position.z, enemy.mesh.material.color, 15);
+                            scene.remove(enemy.mesh);
+                            enemies.splice(j, 1);
+                        }
+                        
+                        scene.remove(bullet.mesh);
+                        bullets.splice(i, 1);
+                        hit = true;
+                        break;
+                    }
+                }
+                
+                if (!hit && bullet.mesh.position.length() > 50) {
+                    scene.remove(bullet.mesh);
+                    bullets.splice(i, 1);
+                }
+            }
+            
+            // Update missiles
+            for (let i = missiles.length - 1; i >= 0; i--) {
+                const missile = missiles[i];
+                
+                if (missile.target && enemies.includes(missile.target)) {
+                    const direction = missile.target.mesh.position.clone().sub(missile.mesh.position).normalize();
+                    missile.mesh.position.add(direction.multiplyScalar(missile.speed));
+                    missile.mesh.lookAt(missile.target.mesh.position);
+                    
+                    // Check hit
+                    if (missile.mesh.position.distanceTo(missile.target.mesh.position) < 1) {
+                        // Splash damage
+                        enemies.forEach(e => {
+                            if (e.mesh.position.distanceTo(missile.mesh.position) < 5) {
+                                e.hp -= towerDamage * 3;
+                                if (e.hp <= 0) {
+                                    score += 10 * wave;
+                                    kills++;
+                                    createExplosion(e.mesh.position.x, e.mesh.position.y, e.mesh.position.z, e.mesh.material.color, 15);
+                                    scene.remove(e.mesh);
+                                    enemies.splice(enemies.indexOf(e), 1);
+                                }
+                            }
+                        });
+                        
+                        createExplosion(missile.mesh.position.x, missile.mesh.position.y, missile.mesh.position.z, 0xff0000, 40);
+                        scene.remove(missile.mesh);
+                        missiles.splice(i, 1);
+                    }
+                } else {
+                    scene.remove(missile.mesh);
+                    missiles.splice(i, 1);
+                }
+            }
+            
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.position.add(p.velocity);
+                p.velocity.y -= 0.01;
+                p.life -= 0.02;
+                p.material.opacity = p.life;
+                p.material.transparent = true;
+                
+                if (p.life <= 0) {
+                    scene.remove(p);
+                    particles.splice(i, 1);
+                }
+            }
+            
+            updateUI();
+            renderer.render(scene, camera);
+        }
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        spawnWave();
+        animate();
+    </script>
+</body>
+</html>
+
