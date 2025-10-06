@@ -218,8 +218,8 @@
             <span class="stat-value">9</span>
         </div>
         <div class="stat-row">
-            <span class="stat-label">Moons:</span>
-            <span class="stat-value">12</span>
+            <span class="stat-label">Real Comets:</span>
+            <span class="stat-value">3</span>
         </div>
     </div>
 
@@ -318,18 +318,18 @@
                 const starMaterial = new THREE.MeshBasicMaterial({
                     color: star.color,
                     emissive: star.color,
-                    emissiveIntensity: 0.8
+                    emissiveIntensity: 1.2
                 });
                 const starMesh = new THREE.Mesh(starGeometry, starMaterial);
                 starMesh.position.set(x, y, z);
                 
-                // Добавляем свечение для самых ярких звёзд
-                if (star.magnitude < 0.5) {
-                    const glowGeometry = new THREE.SphereGeometry(size * 2, 8, 8);
+                // Добавляем свечение для ярких звёзд
+                if (star.magnitude < 1.5) {
+                    const glowGeometry = new THREE.SphereGeometry(size * 2.5, 8, 8);
                     const glowMaterial = new THREE.MeshBasicMaterial({
                         color: star.color,
                         transparent: true,
-                        opacity: 0.2,
+                        opacity: 0.4,
                         side: THREE.BackSide
                     });
                     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
@@ -382,7 +382,7 @@
                 size: 0.8, // Меньше размер
                 vertexColors: true,
                 transparent: true,
-                opacity: 0.7,
+                opacity: 0.8, // Ярче
                 blending: THREE.AdditiveBlending,
                 sizeAttenuation: true
             });
@@ -461,17 +461,17 @@
             return texture;
         }
 
-        // Данные планет с улучшенными цветами
+        // Данные планет с реалистичными цветами
         const planetsData = [
-            { name: 'mercury', distance: 5.79, size: 0.3, baseColor: 0x9d9d9d, detailColor: 0x6d6d6d, speed: 4.09, tilt: 7.0, axialTilt: 0.034 },
-            { name: 'venus', distance: 10.82, size: 0.75, baseColor: 0xe8d0a0, detailColor: 0xf0e68c, speed: 1.62, tilt: 3.4, axialTilt: 177.4 },
-            { name: 'earth', distance: 14.96, size: 0.8, baseColor: 0x1e90ff, detailColor: 0x228b22, speed: 1.0, tilt: 0.0, axialTilt: 23.4, moons: 1, moonColor: 0xaaaaaa },
-            { name: 'mars', distance: 22.79, size: 0.42, baseColor: 0xcd5c5c, detailColor: 0x8b4513, speed: 0.53, tilt: 1.9, axialTilt: 25.2, moons: 2, moonColor: 0x7a7a7a },
-            { name: 'jupiter', distance: 77.86, size: 4.5, baseColor: 0xdaa520, detailColor: 0xc19a6b, speed: 0.084, tilt: 1.3, axialTilt: 3.1, moons: 4, bands: true, moonColor: 0xf5deb3 },
-            { name: 'saturn', distance: 143.0, size: 3.8, baseColor: 0xf4e4c1, detailColor: 0xffd700, speed: 0.034, tilt: 2.5, axialTilt: 26.7, moons: 3, rings: true, moonColor: 0xe6d7c3 },
-            { name: 'uranus', distance: 287.0, size: 2.0, baseColor: 0x4fd0e7, detailColor: 0x87ceeb, speed: 0.012, tilt: 0.8, axialTilt: 97.8 },
-            { name: 'neptune', distance: 450.0, size: 1.95, baseColor: 0x4169e1, detailColor: 0x0047ab, speed: 0.006, tilt: 1.8, axialTilt: 28.3 },
-            { name: 'pluto', distance: 590.0, size: 0.18, baseColor: 0xd2b48c, detailColor: 0xa0826d, speed: 0.004, tilt: 17.2, axialTilt: 122.5 }
+            { name: 'mercury', distance: 5.79, size: 0.3, baseColor: 0x8c8c8c, detailColor: 0x5a5a5a, speed: 4.09, tilt: 7.0, axialTilt: 0.034 },
+            { name: 'venus', distance: 10.82, size: 0.75, baseColor: 0xe0c8a0, detailColor: 0xc8b090, speed: 1.62, tilt: 3.4, axialTilt: 177.4 },
+            { name: 'earth', distance: 14.96, size: 0.8, baseColor: 0x1e90ff, detailColor: 0x228b22, speed: 1.0, tilt: 0.0, axialTilt: 23.4, moons: 1, moonColor: 0xc0c0c0 },
+            { name: 'mars', distance: 22.79, size: 0.42, baseColor: 0xc85a3c, detailColor: 0x8b3a1a, speed: 0.53, tilt: 1.9, axialTilt: 25.2, moons: 2, moonColor: 0x7a6a5a },
+            { name: 'jupiter', distance: 77.86, size: 4.5, baseColor: 0xc8a880, detailColor: 0xa88860, speed: 0.084, tilt: 1.3, axialTilt: 3.1, moons: 4, bands: true, moonColor: 0xd0c8b8 },
+            { name: 'saturn', distance: 143.0, size: 3.8, baseColor: 0xe0d0b0, detailColor: 0xc8b898, speed: 0.034, tilt: 2.5, axialTilt: 26.7, moons: 3, rings: true, moonColor: 0xb8b0a0 },
+            { name: 'uranus', distance: 287.0, size: 2.0, baseColor: 0x70d8e8, detailColor: 0x50b8c8, speed: 0.012, tilt: 0.8, axialTilt: 97.8 },
+            { name: 'neptune', distance: 450.0, size: 1.95, baseColor: 0x5080e0, detailColor: 0x3060c0, speed: 0.006, tilt: 1.8, axialTilt: 28.3 },
+            { name: 'pluto', distance: 590.0, size: 0.18, baseColor: 0xb8a090, detailColor: 0x988070, speed: 0.004, tilt: 17.2, axialTilt: 122.5 }
         ];
 
         const planets = [];
@@ -567,39 +567,67 @@
             });
         });
 
-        // Кометы
+        // Реальные кометы с настоящими орбитальными параметрами
+        const cometsData = [
+            { 
+                name: "Halley's Comet",
+                semiMajor: 270, // ~18 AU масштабированно
+                eccentricity: 0.967,
+                inclination: 162.3,
+                speed: 0.013,
+                angle: Math.random() * Math.PI * 2
+            },
+            { 
+                name: "Comet Encke",
+                semiMajor: 33, // ~2.2 AU масштабированно  
+                eccentricity: 0.847,
+                inclination: 11.8,
+                speed: 0.3,
+                angle: Math.random() * Math.PI * 2
+            },
+            { 
+                name: "Hale-Bopp",
+                semiMajor: 420, // приближенно
+                eccentricity: 0.995,
+                inclination: 89.4,
+                speed: 0.004,
+                angle: Math.random() * Math.PI * 2
+            }
+        ];
+
         const comets = [];
-        for (let i = 0; i < 3; i++) {
-            const cometGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+        cometsData.forEach((data, i) => {
+            const cometGeometry = new THREE.SphereGeometry(0.25, 16, 16);
             const cometMaterial = new THREE.MeshBasicMaterial({ 
-                color: 0xaaddff,
-                emissive: 0xaaddff,
-                emissiveIntensity: 0.5
+                color: 0xccddff,
+                emissive: 0xccddff,
+                emissiveIntensity: 0.6
             });
             const comet = new THREE.Mesh(cometGeometry, cometMaterial);
             
-            const tailGeometry = new THREE.ConeGeometry(0.5, 8, 8);
+            const tailGeometry = new THREE.ConeGeometry(0.4, 10, 8);
             const tailMaterial = new THREE.MeshBasicMaterial({
                 color: 0xaaddff,
                 transparent: true,
-                opacity: 0.3
+                opacity: 0.25
             });
             const tail = new THREE.Mesh(tailGeometry, tailMaterial);
             tail.rotation.x = Math.PI / 2;
-            tail.position.z = -4;
+            tail.position.z = -5;
             comet.add(tail);
             
             scene.add(comet);
             
             comets.push({
                 mesh: comet,
-                distance: 100 + i * 80,
-                speed: 0.3 + i * 0.1,
-                angle: Math.random() * Math.PI * 2,
-                eccentricity: 0.7,
-                inclination: 30 + i * 15
+                name: data.name,
+                semiMajor: data.semiMajor,
+                eccentricity: data.eccentricity,
+                inclination: data.inclination,
+                speed: data.speed,
+                angle: data.angle
             });
-        }
+        });
 
         // Камера и навигация
         let cameraState = {
@@ -750,10 +778,12 @@
             
             comets.forEach(comet => {
                 comet.angle += comet.speed * 0.001;
-                const r = comet.distance * (1 - comet.eccentricity * Math.cos(comet.angle));
+                // Реальная эллиптическая орбита: r = a(1-e²)/(1+e*cos(θ))
+                const r = comet.semiMajor * (1 - comet.eccentricity * comet.eccentricity) / 
+                          (1 + comet.eccentricity * Math.cos(comet.angle));
                 const x = Math.cos(comet.angle) * r;
                 const z = Math.sin(comet.angle) * r;
-                const y = Math.sin(comet.angle) * r * Math.sin(comet.inclination * Math.PI / 180) * 0.5;
+                const y = Math.sin(comet.angle) * r * Math.sin(comet.inclination * Math.PI / 180) * 0.4;
                 
                 comet.mesh.position.set(x, y, z);
                 comet.mesh.lookAt(0, 0, 0);
