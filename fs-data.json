@@ -1,0 +1,142 @@
+{
+  "name": "workspaces",
+  "path": "/home/jenya/workspaces",
+  "type": "directory",
+  "fileCount": 2,
+  "dirCount": 13,
+  "size": 32546180502,
+  "children": [
+    {
+      "name": "active",
+      "path": "/home/jenya/workspaces/active",
+      "type": "directory",
+      "fileCount": 0,
+      "dirCount": 6,
+      "size": 2672053968,
+      "children": [
+
+      ]
+    },
+    {
+      "name": "archive",
+      "path": "/home/jenya/workspaces/archive",
+      "type": "directory",
+      "fileCount": 0,
+      "dirCount": 6,
+      "size": 12155954589,
+      "children": [
+
+      ]
+    },
+    {
+      "name": "arshanskaya",
+      "path": "/home/jenya/workspaces/arshanskaya",
+      "type": "directory",
+      "fileCount": 1,
+      "dirCount": 4,
+      "size": 658919752,
+      "children": [
+
+      ]
+    },
+    {
+      "name": "cursor",
+      "path": "/home/jenya/workspaces/cursor",
+      "type": "directory",
+      "fileCount": 0,
+      "dirCount": 2,
+      "size": 0,
+      "children": [
+
+      ]
+    },
+    {
+      "name": "deprecated",
+      "path": "/home/jenya/workspaces/deprecated",
+      "type": "directory",
+      "fileCount": 0,
+      "dirCount": 6,
+      "size": 8254472,
+      "children": [
+
+      ]
+    },
+    {
+      "name": "experimental",
+      "path": "/home/jenya/workspaces/experimental",
+      "type": "directory",
+      "fileCount": 0,
+      "dirCount": 22,
+      "size": 1508871609,
+      "children": [
+
+      ]
+    },
+    {
+      "name": "izkaregn",
+      "path": "/home/jenya/workspaces/izkaregn",
+      "type": "directory",
+      "fileCount": 1,
+      "dirCount": 10,
+      "size": 1392428352,
+      "children": [
+
+      ]
+    },
+    {
+      "name": "legacy",
+      "path": "/home/jenya/workspaces/legacy",
+      "type": "directory",
+      "fileCount": 0,
+      "dirCount": 11,
+      "size": 1269410519,
+      "children": [
+
+      ]
+    },
+    {
+      "name": "lib",
+      "path": "/home/jenya/workspaces/lib",
+      "type": "directory",
+      "fileCount": 0,
+      "dirCount": 2,
+      "size": 8262,
+      "children": [
+
+      ]
+    },
+    {
+      "name": ".scripts",
+      "path": "/home/jenya/workspaces/.scripts",
+      "type": "directory",
+      "fileCount": 6,
+      "dirCount": 1,
+      "size": 24408,
+      "children": [
+
+      ]
+    },
+    {
+      "name": "tools",
+      "path": "/home/jenya/workspaces/tools",
+      "type": "directory",
+      "fileCount": 0,
+      "dirCount": 2,
+      "size": 12879699717,
+      "children": [
+
+      ]
+    },
+    {
+      "name": "video-presentation",
+      "path": "/home/jenya/workspaces/video-presentation",
+      "type": "directory",
+      "fileCount": 13,
+      "dirCount": 2,
+      "size": 574195,
+      "children": [
+
+      ]
+    }
+  ]
+}

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D File Navigator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow: hidden;
+            background: #0a0e1a;
+            font-family: 'Courier New', monospace;
+            color: #00ff88;
+        }
+        #canvas { display: block; }
+        
+        .breadcrumbs {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(10, 14, 26, 0.95);
+            padding: 20px 30px;
+            border-radius: 10px;
+            border: 2px solid #00ff88;
+            font-size: 22px;
+            max-width: 80%;
+            z-index: 100;
+        }
+        .breadcrumbs span {
+            color: #00ffff;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+        .breadcrumbs span:hover {
+            background: rgba(0, 255, 136, 0.2);
+        }
+        .breadcrumbs .separator {
+            color: #666;
+            cursor: default;
+            padding: 0 5px;
+        }
+        .breadcrumbs .separator:hover {
+            background: transparent;
+        }
+        
+        .info-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 14, 26, 0.95);
+            padding: 25px;
+            border-radius: 10px;
+            border: 2px solid #00ff88;
+            font-size: 18px;
+            min-width: 300px;
+        }
+        .info-panel h2 {
+            margin: 0 0 15px 0;
+            font-size: 24px;
+            color: #00ff88;
+            text-shadow: 0 0 10px #00ff88;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 18px;
+        }
+        .info-label { color: #00ffff; }
+        .info-value { 
+            color: #ff3366;
+            font-weight: bold;
+        }
+        
+        .instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(10, 14, 26, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #00ff88;
+            font-size: 18px;
+        }
+        .instructions h3 {
+            margin: 0 0 10px 0;
+            font-size: 20px;
+            color: #00ff88;
+        }
+        .instructions div {
+            margin: 5px 0;
+        }
+        
+        .selected-item {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(10, 14, 26, 0.95);
+            padding: 25px;
+            border-radius: 10px;
+            border: 2px solid #ff3366;
+            font-size: 20px;
+            min-width: 350px;
+            display: none;
+        }
+        .selected-item h3 {
+            margin: 0 0 15px 0;
+            font-size: 26px;
+            color: #ff3366;
+            text-shadow: 0 0 10px #ff3366;
+            word-break: break-all;
+        }
+        .selected-item .stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 18px;
+        }
+        .selected-item .stat-label { color: #00ffff; }
+        .selected-item .stat-value { 
+            color: #00ff88;
+            font-weight: bold;
+        }
+        .selected-item button {
+            margin-top: 15px;
+            width: 100%;
+            padding: 12px;
+            background: #00ff88;
+            border: none;
+            border-radius: 5px;
+            color: #0a0e1a;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+        }
+        .selected-item button:hover {
+            background: #00ffaa;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="breadcrumbs" id="breadcrumbs">
+        <span onclick="navigateTo([])">~</span>
+    </div>
+    
+    <div class="info-panel">
+        <h2>CURRENT DIR</h2>
+        <div class="info-item">
+            <span class="info-label">Directories:</span>
+            <span class="info-value" id="dir-count">0</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Files:</span>
+            <span class="info-value" id="file-count">0</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Total Size:</span>
+            <span class="info-value" id="total-size">0</span>
+        </div>
+    </div>
+    
+    <div class="instructions">
+        <h3>CONTROLS</h3>
+        <div>• <strong>Click</strong> folder to enter</div>
+        <div>• <strong>Mouse</strong> drag to rotate</div>
+        <div>• <strong>Scroll</strong> to zoom</div>
+        <div>• Use breadcrumbs to go back</div>
+    </div>
+    
+    <div class="selected-item" id="selected-item">
+        <h3 id="selected-name">folder-name</h3>
+        <div class="stat">
+            <span class="stat-label">Directories:</span>
+            <span class="stat-value" id="selected-dirs">0</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Files:</span>
+            <span class="stat-value" id="selected-files">0</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Size:</span>
+            <span class="stat-value" id="selected-size">0 MB</span>
+        </div>
+        <button onclick="enterSelected()">ENTER ►</button>
+    </div>
+
+    <script>
+        // Load filesystem data
+        let fsData = {   "name": "workspaces",   "path": "/home/jenya/workspaces",   "type": "directory",   "fileCount": 2,   "dirCount": 13,   "size": 32546180502,   "children": [     {       "name": "active",       "path": "/home/jenya/workspaces/active",       "type": "directory",       "fileCount": 0,       "dirCount": 6,       "size": 2672053968,       "children": [        ]     },     {       "name": "archive",       "path": "/home/jenya/workspaces/archive",       "type": "directory",       "fileCount": 0,       "dirCount": 6,       "size": 12155954589,       "children": [        ]     },     {       "name": "arshanskaya",       "path": "/home/jenya/workspaces/arshanskaya",       "type": "directory",       "fileCount": 1,       "dirCount": 4,       "size": 658919752,       "children": [        ]     },     {       "name": "cursor",       "path": "/home/jenya/workspaces/cursor",       "type": "directory",       "fileCount": 0,       "dirCount": 2,       "size": 0,       "children": [        ]     },     {       "name": "deprecated",       "path": "/home/jenya/workspaces/deprecated",       "type": "directory",       "fileCount": 0,       "dirCount": 6,       "size": 8254472,       "children": [        ]     },     {       "name": "experimental",       "path": "/home/jenya/workspaces/experimental",       "type": "directory",       "fileCount": 0,       "dirCount": 22,       "size": 1508871609,       "children": [        ]     },     {       "name": "izkaregn",       "path": "/home/jenya/workspaces/izkaregn",       "type": "directory",       "fileCount": 1,       "dirCount": 10,       "size": 1392428352,       "children": [        ]     },     {       "name": "legacy",       "path": "/home/jenya/workspaces/legacy",       "type": "directory",       "fileCount": 0,       "dirCount": 11,       "size": 1269410519,       "children": [        ]     },     {       "name": "lib",       "path": "/home/jenya/workspaces/lib",       "type": "directory",       "fileCount": 0,       "dirCount": 2,       "size": 8262,       "children": [        ]     },     {       "name": ".scripts",       "path": "/home/jenya/workspaces/.scripts",       "type": "directory",       "fileCount": 6,       "dirCount": 1,       "size": 24408,       "children": [        ]     },     {       "name": "tools",       "path": "/home/jenya/workspaces/tools",       "type": "directory",       "fileCount": 0,       "dirCount": 2,       "size": 12879699717,       "children": [        ]     },     {       "name": "video-presentation",       "path": "/home/jenya/workspaces/video-presentation",       "type": "directory",       "fileCount": 13,       "dirCount": 2,       "size": 574195,       "children": [        ]     }   ] };
+        let currentPath = [];
+        let currentData = fsData;
+        let selectedNode = null;
+        
+        const canvas = document.getElementById('canvas');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0e1a);
+        scene.fog = new THREE.Fog(0x0a0e1a, 20, 60);
+        
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        camera.position.set(15, 10, 15);
+        
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+        scene.add(ambientLight);
+        
+        const mainLight = new THREE.PointLight(0x00ff88, 1.5, 100);
+        mainLight.position.set(10, 20, 10);
+        scene.add(mainLight);
+        
+        const accentLight = new THREE.PointLight(0xff3366, 1, 80);
+        accentLight.position.set(-10, 15, -10);
+        scene.add(accentLight);
+        
+        // Grid
+        const gridHelper = new THREE.GridHelper(50, 25, 0x00ff88, 0x003322);
+        scene.add(gridHelper);
+        
+        // Raycaster for interaction
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let nodes = [];
+        let hoveredNode = null;
+        
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+        }
+        
+        function clearScene() {
+            nodes.forEach(node => {
+                scene.remove(node.mesh);
+            });
+            nodes = [];
+        }
+        
+        function renderDirectory(data) {
+            clearScene();
+            
+            const children = data.children || [];
+            const count = children.length;
+            
+            if (count === 0) {
+                // Empty directory
+                return;
+            }
+            
+            // Update info panel
+            document.getElementById('dir-count').textContent = data.dirCount || 0;
+            document.getElementById('file-count').textContent = data.fileCount || 0;
+            document.getElementById('total-size').textContent = formatSize(data.size || 0);
+            
+            // Arrange in circle or grid
+            const radius = Math.max(8, count * 0.5);
+            const angleStep = (Math.PI * 2) / count;
+            
+            children.forEach((child, i) => {
+                const angle = i * angleStep;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                
+                // Size based on content
+                const size = Math.max(0.8, Math.min(3, Math.log10((child.size || 1) / 1000 + 1)));
+                
+                // Color based on type and size
+                const hue = (child.size % 360) / 360;
+                const color = new THREE.Color().setHSL(hue, 0.8, 0.5);
+                
+                const geometry = new THREE.BoxGeometry(size, size, size);
+                const material = new THREE.MeshStandardMaterial({
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.3,
+                    roughness: 0.4,
+                    metalness: 0.6
+                });
+                
+                const cube = new THREE.Mesh(geometry, material);
+                cube.position.set(x, size/2, z);
+                scene.add(cube);
+                
+                // Wireframe
+                const wireframeGeo = new THREE.EdgesGeometry(geometry);
+                const wireframeMat = new THREE.LineBasicMaterial({ color: 0x00ff88, linewidth: 2 });
+                const wireframe = new THREE.LineSegments(wireframeGeo, wireframeMat);
+                cube.add(wireframe);
+                
+                // Text label
+                const canvas2d = document.createElement('canvas');
+                canvas2d.width = 512;
+                canvas2d.height = 128;
+                const ctx = canvas2d.getContext('2d');
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, 512, 128);
+                ctx.fillStyle = '#00ff88';
+                ctx.font = 'bold 40px Courier New';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                const name = child.name.length > 20 ? child.name.substring(0, 18) + '..' : child.name;
+                ctx.fillText(name, 256, 64);
+                
+                const texture = new THREE.CanvasTexture(canvas2d);
+                const spriteMaterial = new THREE.SpriteMaterial({ 
+                    map: texture,
+                    transparent: true
+                });
+                const sprite = new THREE.Sprite(spriteMaterial);
+                sprite.scale.set(size * 3, size * 0.75, 1);
+                sprite.position.y = size * 1.2;
+                cube.add(sprite);
+                
+                nodes.push({
+                    mesh: cube,
+                    data: child,
+                    baseColor: color,
+                    baseEmissive: 0.3
+                });
+            });
+        }
+        
+        function updateBreadcrumbs() {
+            const breadcrumbsEl = document.getElementById('breadcrumbs');
+            let html = '<span onclick="navigateTo([])">~</span>';
+            
+            currentPath.forEach((name, i) => {
+                html += '<span class="separator">/</span>';
+                html += `<span onclick="navigateTo(${JSON.stringify(currentPath.slice(0, i + 1))})">${name}</span>`;
+            });
+            
+            breadcrumbsEl.innerHTML = html;
+        }
+        
+        function navigateTo(path) {
+            currentPath = path;
+            currentData = fsData;
+            
+            for (const segment of path) {
+                const child = currentData.children.find(c => c.name === segment);
+                if (child) {
+                    currentData = child;
+                } else {
+                    break;
+                }
+            }
+            
+            renderDirectory(currentData);
+            updateBreadcrumbs();
+            
+            document.getElementById('selected-item').style.display = 'none';
+            selectedNode = null;
+        }
+        
+        function enterSelected() {
+            if (selectedNode) {
+                currentPath.push(selectedNode.data.name);
+                navigateTo(currentPath);
+            }
+        }
+        
+        // Mouse interaction
+        canvas.addEventListener('mousemove', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodes.map(n => n.mesh));
+            
+            // Reset previous hover
+            if (hoveredNode && hoveredNode !== selectedNode) {
+                hoveredNode.mesh.material.emissiveIntensity = hoveredNode.baseEmissive;
+            }
+            
+            if (intersects.length > 0) {
+                hoveredNode = nodes.find(n => n.mesh === intersects[0].object);
+                if (hoveredNode && hoveredNode !== selectedNode) {
+                    hoveredNode.mesh.material.emissiveIntensity = 0.6;
+                }
+                canvas.style.cursor = 'pointer';
+            } else {
+                hoveredNode = null;
+                canvas.style.cursor = 'default';
+            }
+        });
+        
+        canvas.addEventListener('click', (event) => {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodes.map(n => n.mesh));
+            
+            if (intersects.length > 0) {
+                const clickedNode = nodes.find(n => n.mesh === intersects[0].object);
+                
+                // Reset previous selection
+                if (selectedNode) {
+                    selectedNode.mesh.material.emissiveIntensity = selectedNode.baseEmissive;
+                }
+                
+                selectedNode = clickedNode;
+                selectedNode.mesh.material.emissiveIntensity = 0.8;
+                
+                // Show info
+                document.getElementById('selected-name').textContent = selectedNode.data.name;
+                document.getElementById('selected-dirs').textContent = selectedNode.data.dirCount || 0;
+                document.getElementById('selected-files').textContent = selectedNode.data.fileCount || 0;
+                document.getElementById('selected-size').textContent = formatSize(selectedNode.data.size || 0);
+                document.getElementById('selected-item').style.display = 'block';
+            }
+        });
+        
+        // Animation
+        let time = 0;
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.01;
+            
+            // Gentle rotation of nodes
+            nodes.forEach((node, i) => {
+                node.mesh.rotation.y += 0.005;
+                
+                // Subtle floating
+                const floatOffset = Math.sin(time + i * 0.5) * 0.1;
+                node.mesh.position.y = node.mesh.geometry.parameters.height / 2 + floatOffset;
+            });
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Initialize
+        renderDirectory(currentData);
+        animate();
+    </script>
+</body>
+</html>
+
