@@ -106,6 +106,22 @@
             font-size: 20px;
             color: #00ffff;
         }
+        
+        #canvas {
+            cursor: none;
+        }
+        
+        .crosshair {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #00ff88;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1000;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px #00ff88;
+        }
     </style>
 </head>
 <body>
@@ -133,8 +149,10 @@
     </div>
     
     <div class="instructions">
-        Move: MOUSE • Launch: SPACE
+        Move: MOUSE • Launch: CLICK
     </div>
+    
+    <div class="crosshair" id="crosshair"></div>
 
     <script>
         const canvas = document.getElementById('canvas');
@@ -147,7 +165,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
         
-        camera.position.set(0, 8, 12);
+        camera.position.set(0, 12, 8);
         camera.lookAt(0, 0, 0);
         
         // Lighting
@@ -254,6 +272,38 @@
         const blocks = [];
         const blockColors = [0xff0000, 0xff6600, 0xffcc00, 0x00ff00, 0x0099ff];
         
+        function createBlock(x, z, colorIndex, points) {
+            const blockWidth = 1;
+            const blockDepth = 0.4;
+            const color = blockColors[colorIndex % blockColors.length];
+            
+            const blockMesh = new THREE.Mesh(
+                new THREE.BoxGeometry(blockWidth, 0.5, blockDepth),
+                new THREE.MeshStandardMaterial({
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.3,
+                    metalness: 0.6,
+                    roughness: 0.4
+                })
+            );
+            blockMesh.position.set(x, 0.25, z);
+            blockMesh.castShadow = true;
+            scene.add(blockMesh);
+            
+            // Wireframe
+            const wireframe = new THREE.LineSegments(
+                new THREE.EdgesGeometry(blockMesh.geometry),
+                new THREE.LineBasicMaterial({ color: 0xffffff })
+            );
+            blockMesh.add(wireframe);
+            
+            blocks.push({
+                mesh: blockMesh,
+                points: points
+            });
+        }
+        
         function createLevel(level) {
             // Clear existing blocks
             blocks.forEach(block => {
@@ -261,46 +311,72 @@
             });
             blocks.length = 0;
             
-            const rows = 3 + level;
             const cols = 8;
+            const rows = 6;
             const blockWidth = 1;
             const blockDepth = 0.4;
             const spacing = 0.1;
             
-            for (let row = 0; row < rows; row++) {
-                for (let col = 0; col < cols; col++) {
-                    const x = (col - cols/2 + 0.5) * (blockWidth + spacing);
-                    const z = -areaDepth/2 + 2 + row * (blockDepth + spacing);
+            const startZ = -areaDepth/2 + 2;
+            
+            // Different patterns for each level
+            switch(level) {
+                case 1: // Pyramid
+                    for (let row = 0; row < 5; row++) {
+                        const colsInRow = 8 - row;
+                        for (let col = 0; col < colsInRow; col++) {
+                            const x = (col - colsInRow/2 + 0.5) * (blockWidth + spacing);
+                            const z = startZ + row * (blockDepth + spacing);
+                            createBlock(x, z, row, (5 - row) * 10);
+                        }
+                    }
+                    break;
                     
-                    const colorIndex = row % blockColors.length;
-                    const color = blockColors[colorIndex];
+                case 2: // Checkerboard
+                    for (let row = 0; row < 6; row++) {
+                        for (let col = 0; col < cols; col++) {
+                            if ((row + col) % 2 === 0) {
+                                const x = (col - cols/2 + 0.5) * (blockWidth + spacing);
+                                const z = startZ + row * (blockDepth + spacing);
+                                createBlock(x, z, row, (6 - row) * 10);
+                            }
+                        }
+                    }
+                    break;
                     
-                    const blockMesh = new THREE.Mesh(
-                        new THREE.BoxGeometry(blockWidth, 0.5, blockDepth),
-                        new THREE.MeshStandardMaterial({
-                            color: color,
-                            emissive: color,
-                            emissiveIntensity: 0.3,
-                            metalness: 0.6,
-                            roughness: 0.4
-                        })
-                    );
-                    blockMesh.position.set(x, 0.25, z);
-                    blockMesh.castShadow = true;
-                    scene.add(blockMesh);
+                case 3: // Diamond
+                    const centerRow = 3;
+                    for (let row = 0; row < 7; row++) {
+                        const distance = Math.abs(row - centerRow);
+                        const colsInRow = 7 - distance * 2;
+                        for (let col = 0; col < colsInRow; col++) {
+                            const x = (col - colsInRow/2 + 0.5) * (blockWidth + spacing);
+                            const z = startZ + row * (blockDepth + spacing);
+                            createBlock(x, z, distance, (4 - distance) * 10);
+                        }
+                    }
+                    break;
                     
-                    // Wireframe
-                    const wireframe = new THREE.LineSegments(
-                        new THREE.EdgesGeometry(blockMesh.geometry),
-                        new THREE.LineBasicMaterial({ color: 0xffffff })
-                    );
-                    blockMesh.add(wireframe);
+                case 4: // Zigzag
+                    for (let row = 0; row < 8; row++) {
+                        const offset = Math.floor(row / 2) % 2 === 0 ? 0 : 4;
+                        for (let col = 0; col < 4; col++) {
+                            const x = (col + offset - cols/2 + 0.5) * (blockWidth + spacing);
+                            const z = startZ + row * (blockDepth + spacing);
+                            createBlock(x, z, row % 5, (8 - row) * 10);
+                        }
+                    }
+                    break;
                     
-                    blocks.push({
-                        mesh: blockMesh,
-                        points: (rows - row) * 10
-                    });
-                }
+                case 5: // Full wall
+                    for (let row = 0; row < 8; row++) {
+                        for (let col = 0; col < cols; col++) {
+                            const x = (col - cols/2 + 0.5) * (blockWidth + spacing);
+                            const z = startZ + row * (blockDepth + spacing);
+                            createBlock(x, z, row, (8 - row) * 10);
+                        }
+                    }
+                    break;
             }
         }
         
@@ -334,20 +410,43 @@
         let gameRunning = true;
         
         // Input
-        const mouse = { x: 0 };
+        const mouse = new THREE.Vector2();
+        const raycaster = new THREE.Raycaster();
+        const crosshair = document.getElementById('crosshair');
+        
+        // Create invisible plane for raycasting
+        const paddlePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        const intersectPoint = new THREE.Vector3();
         
         window.addEventListener('mousemove', (e) => {
-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            const targetX = mouse.x * (areaWidth / 2 - 1);
-            paddle.position.x = THREE.MathUtils.clamp(targetX, -areaWidth/2 + 1, areaWidth/2 - 1);
+            // Update crosshair position
+            crosshair.style.left = e.clientX + 'px';
+            crosshair.style.top = e.clientY + 'px';
             
-            if (!ballLaunched) {
-                ball.position.x = paddle.position.x;
+            // Calculate mouse position in normalized device coordinates
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            
+            // Raycast from camera to paddle plane
+            raycaster.setFromCamera(mouse, camera);
+            raycaster.ray.intersectPlane(paddlePlane, intersectPoint);
+            
+            // Move paddle to intersection point
+            if (intersectPoint) {
+                paddle.position.x = THREE.MathUtils.clamp(
+                    intersectPoint.x,
+                    -areaWidth/2 + 1,
+                    areaWidth/2 - 1
+                );
+                
+                if (!ballLaunched) {
+                    ball.position.x = paddle.position.x;
+                }
             }
         });
         
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && !ballLaunched && gameRunning) {
+        window.addEventListener('click', (e) => {
+            if (!ballLaunched && gameRunning) {
                 ballLaunched = true;
                 ballVelocity.set(
                     (Math.random() - 0.5) * 0.05,
