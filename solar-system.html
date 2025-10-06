@@ -219,7 +219,7 @@
         </div>
         <div class="stat-row">
             <span class="stat-label">Real Comets:</span>
-            <span class="stat-value">3</span>
+            <span class="stat-value">2</span>
         </div>
     </div>
 
@@ -312,24 +312,24 @@
                 const z = dist * Math.cos(decRad) * Math.sin(raRad);
                 
                 // Маленький размер - удалённые точки
-                const size = 0.3 + (2 - star.magnitude) * 0.08;
+                const size = 0.35 + (2 - star.magnitude) * 0.1;
                 
-                const starGeometry = new THREE.SphereGeometry(Math.max(size, 0.2), 8, 8);
+                const starGeometry = new THREE.SphereGeometry(Math.max(size, 0.25), 8, 8);
                 const starMaterial = new THREE.MeshBasicMaterial({
                     color: star.color,
                     emissive: star.color,
-                    emissiveIntensity: 1.8
+                    emissiveIntensity: 2.5
                 });
                 const starMesh = new THREE.Mesh(starGeometry, starMaterial);
                 starMesh.position.set(x, y, z);
                 
                 // Добавляем свечение для самых ярких звёзд
                 if (star.magnitude < 0.5) {
-                    const glowGeometry = new THREE.SphereGeometry(size * 4, 8, 8);
+                    const glowGeometry = new THREE.SphereGeometry(size * 5, 8, 8);
                     const glowMaterial = new THREE.MeshBasicMaterial({
                         color: star.color,
                         transparent: true,
-                        opacity: 0.6,
+                        opacity: 0.7,
                         side: THREE.BackSide
                     });
                     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
@@ -379,10 +379,10 @@
             randomStarGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
             
             const randomStarMaterial = new THREE.PointsMaterial({
-                size: 1.2,
+                size: 1.5,
                 vertexColors: true,
                 transparent: true,
-                opacity: 0.95,
+                opacity: 1.0,
                 blending: THREE.AdditiveBlending,
                 sizeAttenuation: true
             });
@@ -403,16 +403,6 @@
         });
         const sun = new THREE.Mesh(sunGeometry, sunMaterial);
         scene.add(sun);
-
-        const glowGeometry = new THREE.SphereGeometry(7, 32, 32);
-        const glowMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffaa00,
-            transparent: true,
-            opacity: 0.3,
-            side: THREE.BackSide
-        });
-        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-        scene.add(glow);
 
         // Улучшенная функция создания процедурной текстуры
         function createPlanetTexture(baseColor, detailColor, size = 256) {
@@ -575,23 +565,15 @@
                 eccentricity: 0.967,
                 inclination: 162.3,
                 speed: 0.013,
-                angle: Math.random() * Math.PI * 2
-            },
-            { 
-                name: "Comet Encke",
-                semiMajor: 33, // ~2.2 AU масштабированно  
-                eccentricity: 0.847,
-                inclination: 11.8,
-                speed: 0.3,
-                angle: Math.random() * Math.PI * 2
+                angle: Math.PI // Начинаем с афелия (дальней точки)
             },
             { 
                 name: "Hale-Bopp",
                 semiMajor: 420, // приближенно
-                eccentricity: 0.995,
+                eccentricity: 0.95, // Снижаем эксцентриситет чтобы не врезалась
                 inclination: 89.4,
                 speed: 0.004,
-                angle: Math.random() * Math.PI * 2
+                angle: Math.PI * 0.5
             }
         ];
 
@@ -749,9 +731,6 @@
             time += 0.001;
             
             sun.rotation.y += 0.001;
-            glow.rotation.y -= 0.0005;
-            const pulse = 1 + Math.sin(time * 2) * 0.05;
-            glow.scale.set(pulse, pulse, pulse);
             
             planets.forEach(planet => {
                 planet.angle += planet.speed * 0.001;
