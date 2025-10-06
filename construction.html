@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Construction Process Animation</title>
+    <title>Cabinet Assembly Animation</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
         * {
             margin: 0;
@@ -103,12 +104,12 @@
     <canvas id="canvas"></canvas>
     
     <div class="info-panel">
-        <h2>Construction Process</h2>
+        <h2>Cabinet Assembly</h2>
         <div class="stage-info">
-            <div id="stage-name">Stage: Foundation</div>
-            <div id="materials-used">Materials: 0</div>
+            <div id="stage-name">Stage: Bottom Panel</div>
+            <div id="materials-used">Parts: 0 / 10</div>
             <div class="material-info" id="material-details">
-                Concrete blocks: 250x250x500mm
+                Plywood board: 1000×500×18mm
             </div>
         </div>
         <div class="progress-bar">
@@ -135,8 +136,17 @@
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         
-        camera.position.set(15, 12, 15);
-        camera.lookAt(0, 3, 0);
+        camera.position.set(2, 1.5, 2);
+        camera.lookAt(0, 1, 0);
+        
+        // OrbitControls for mouse interaction
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 1;
+        controls.maxDistance = 10;
+        controls.target.set(0, 1, 0);
+        controls.update();
         
         // Lighting
         const sunLight = new THREE.DirectionalLight(0xffffff, 1);
@@ -164,244 +174,128 @@
         ground.receiveShadow = true;
         scene.add(ground);
         
-        // Materials library (real dimensions in meters)
-        const materials = {
-            // Concrete foundation blocks: 250x250x500mm
-            foundationBlock: { w: 0.5, h: 0.25, d: 0.25, color: 0x808080 },
-            // Brick: 250x120x65mm
-            brick: { w: 0.25, h: 0.065, d: 0.12, color: 0xb22222 },
-            // Concrete block: 400x200x200mm
-            concreteBlock: { w: 0.4, h: 0.2, d: 0.2, color: 0xa9a9a9 },
-            // Timber beam: 50x150mm, length varies
-            beam: { w: 0.05, h: 0.15, d: 1.0, color: 0x8b4513 },
-            // Plywood sheet: 1220x2440x15mm
-            plywood: { w: 1.22, h: 0.015, d: 2.44, color: 0xdeb887 },
-            // Concrete slab: varies
-            slab: { w: 1.0, h: 0.15, d: 1.0, color: 0x696969 },
-            // Roof tile: 300x400mm
-            roofTile: { w: 0.3, h: 0.02, d: 0.4, color: 0x8b0000 }
-        };
+        // Cabinet dimensions
+        const cabinetWidth = 1.0;    // 1 meter
+        const cabinetHeight = 2.0;   // 2 meters
+        const cabinetDepth = 0.5;    // 0.5 meter
+        const boardThickness = 0.018; // 18mm boards
+        const plywoodThickness = 0.006; // 6mm plywood
+        
+        const woodColor = 0xdaa520;  // Golden wood
+        const plywoodColor = 0xd2b48c; // Lighter wood
         
         // Construction elements
-        const constructionElements = [];
-        let buildingProgress = 0;
+        const parts = [];
         let currentStage = 0;
         let paused = false;
         let speed = 1;
         
-        // Building dimensions (small house: 6x8 meters)
-        const buildingWidth = 6;
-        const buildingDepth = 8;
-        const wallHeight = 3;
-        
-        // Construction stages
+        // Assembly stages
         const stages = [
-            {
-                name: 'Foundation',
-                duration: 100,
-                material: 'foundationBlock',
-                build: () => buildFoundation()
-            },
-            {
-                name: 'Floor Slab',
-                duration: 50,
-                material: 'slab',
-                build: () => buildFloorSlab()
-            },
-            {
-                name: 'Walls - Layer 1',
-                duration: 120,
-                material: 'brick',
-                build: () => buildWallLayer(0)
-            },
-            {
-                name: 'Walls - Layer 2',
-                duration: 120,
-                material: 'brick',
-                build: () => buildWallLayer(1)
-            },
-            {
-                name: 'Walls - Layer 3',
-                duration: 120,
-                material: 'brick',
-                build: () => buildWallLayer(2)
-            },
-            {
-                name: 'Window/Door Frames',
-                duration: 60,
-                material: 'beam',
-                build: () => buildFrames()
-            },
-            {
-                name: 'Roof Structure',
-                duration: 80,
-                material: 'beam',
-                build: () => buildRoofStructure()
-            },
-            {
-                name: 'Roof Covering',
-                duration: 100,
-                material: 'roofTile',
-                build: () => buildRoofCovering()
-            }
+            { name: 'Bottom Panel', desc: 'Board 1000×500×18mm', build: () => addBottom() },
+            { name: 'Left Side', desc: 'Board 2000×500×18mm', build: () => addLeftSide() },
+            { name: 'Right Side', desc: 'Board 2000×500×18mm', build: () => addRightSide() },
+            { name: 'Top Panel', desc: 'Board 1000×500×18mm', build: () => addTop() },
+            { name: 'Shelf 1', desc: 'Board 964×482×18mm', build: () => addShelf(1) },
+            { name: 'Shelf 2', desc: 'Board 964×482×18mm', build: () => addShelf(2) },
+            { name: 'Back Panel', desc: 'Plywood 1000×2000×6mm', build: () => addBack() },
+            { name: 'Left Door', desc: 'Board 490×1964×18mm', build: () => addDoor('left') },
+            { name: 'Right Door', desc: 'Board 490×1964×18mm', build: () => addDoor('right') }
         ];
         
-        function createBlock(material, x, y, z, rotateY = 0) {
-            const mat = materials[material];
-            const geometry = new THREE.BoxGeometry(mat.w, mat.h, mat.d);
-            const meshMaterial = new THREE.MeshStandardMaterial({ 
-                color: mat.color,
-                roughness: 0.8,
+        const totalStages = stages.length;
+        
+        function createPart(width, height, depth, x, y, z, color, rotX = 0, rotY = 0) {
+            const geometry = new THREE.BoxGeometry(width, height, depth);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: color,
+                roughness: 0.7,
                 metalness: 0.1
             });
-            const mesh = new THREE.Mesh(geometry, meshMaterial);
-            mesh.position.set(x, y, z);
-            mesh.rotation.y = rotateY;
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.userData.targetPos = { x, y, z };
+            mesh.userData.targetRot = { x: rotX, y: rotY };
+            mesh.rotation.x = rotX;
+            mesh.rotation.y = rotY;
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             
-            // Animation: appear from below
-            mesh.userData.targetY = y;
-            mesh.position.y = -2;
+            // Start position: above and slightly away
+            mesh.position.set(x, y + 2, z - 1);
+            mesh.userData.progress = 0;
             
             scene.add(mesh);
-            constructionElements.push(mesh);
+            parts.push(mesh);
             return mesh;
         }
         
-        function buildFoundation() {
-            const mat = materials.foundationBlock;
-            const spacing = mat.w;
-            
-            // Front and back walls
-            for (let x = -buildingWidth/2; x < buildingWidth/2; x += spacing) {
-                createBlock('foundationBlock', x, mat.h/2, -buildingDepth/2);
-                createBlock('foundationBlock', x, mat.h/2, buildingDepth/2);
-            }
-            
-            // Side walls
-            for (let z = -buildingDepth/2 + spacing; z < buildingDepth/2; z += spacing) {
-                createBlock('foundationBlock', -buildingWidth/2, mat.h/2, z);
-                createBlock('foundationBlock', buildingWidth/2, mat.h/2, z);
-            }
+        // Cabinet assembly functions
+        function addBottom() {
+            // Bottom panel: 1000mm wide x 500mm deep x 18mm thick
+            // Lies flat on the ground
+            createPart(cabinetWidth, boardThickness, cabinetDepth, 
+                      0, boardThickness/2, 0, woodColor);
         }
         
-        function buildFloorSlab() {
-            const mat = materials.slab;
-            for (let x = -buildingWidth/2; x < buildingWidth/2; x += mat.w) {
-                for (let z = -buildingDepth/2; z < buildingDepth/2; z += mat.d) {
-                    createBlock('slab', x + mat.w/2, materials.foundationBlock.h + mat.h/2, z + mat.d/2);
-                }
-            }
+        function addLeftSide() {
+            // Left side: 2000mm tall x 500mm deep x 18mm thick
+            // Stands vertically on the left
+            const x = -cabinetWidth/2 + boardThickness/2;
+            const y = cabinetHeight/2 + boardThickness;
+            createPart(boardThickness, cabinetHeight, cabinetDepth,
+                      x, y, 0, woodColor);
         }
         
-        function buildWallLayer(layer) {
-            const floorHeight = materials.foundationBlock.h + materials.slab.h;
-            const mat = materials.brick;
-            const y = floorHeight + mat.h/2 + layer * mat.h * 3;
-            const spacing = mat.w;
-            
-            // Number of rows per layer
-            for (let row = 0; row < 3; row++) {
-                const currentY = y + row * mat.h;
-                const offset = (row % 2) * (mat.w / 2); // Brick pattern offset
-                
-                // Front wall (with door opening)
-                for (let x = -buildingWidth/2; x < buildingWidth/2; x += spacing) {
-                    if (layer === 0 && row < 2 && Math.abs(x) < 0.5) continue; // Door opening
-                    createBlock('brick', x + offset, currentY, -buildingDepth/2 + mat.d/2);
-                }
-                
-                // Back wall
-                for (let x = -buildingWidth/2; x < buildingWidth/2; x += spacing) {
-                    createBlock('brick', x + offset, currentY, buildingDepth/2 - mat.d/2);
-                }
-                
-                // Left wall (with window opening)
-                for (let z = -buildingDepth/2 + spacing; z < buildingDepth/2; z += spacing) {
-                    if (layer === 1 && row === 1 && Math.abs(z) < 1) continue; // Window opening
-                    createBlock('brick', -buildingWidth/2 + mat.d/2, currentY, z + offset);
-                }
-                
-                // Right wall (with window opening)
-                for (let z = -buildingDepth/2 + spacing; z < buildingDepth/2; z += spacing) {
-                    if (layer === 1 && row === 1 && Math.abs(z) < 1) continue; // Window opening
-                    createBlock('brick', buildingWidth/2 - mat.d/2, currentY, z + offset);
-                }
-            }
+        function addRightSide() {
+            // Right side: 2000mm tall x 500mm deep x 18mm thick
+            // Stands vertically on the right
+            const x = cabinetWidth/2 - boardThickness/2;
+            const y = cabinetHeight/2 + boardThickness;
+            createPart(boardThickness, cabinetHeight, cabinetDepth,
+                      x, y, 0, woodColor);
         }
         
-        function buildFrames() {
-            const wallTop = materials.foundationBlock.h + materials.slab.h + materials.brick.h * 9;
-            const mat = materials.beam;
-            
-            // Door frame
-            createBlock('beam', -0.5, wallTop/2, -buildingDepth/2, 0);
-            createBlock('beam', 0.5, wallTop/2, -buildingDepth/2, 0);
-            createBlock('beam', 0, wallTop - mat.h/2, -buildingDepth/2, 0);
-            
-            // Window frames (simplified)
-            // Left wall window
-            createBlock('beam', -buildingWidth/2, wallTop * 0.6, 0, Math.PI/2);
-            // Right wall window
-            createBlock('beam', buildingWidth/2, wallTop * 0.6, 0, Math.PI/2);
+        function addTop() {
+            // Top panel: 1000mm wide x 500mm deep x 18mm thick
+            // Lies flat on top
+            const y = cabinetHeight + boardThickness + boardThickness/2;
+            createPart(cabinetWidth, boardThickness, cabinetDepth,
+                      0, y, 0, woodColor);
         }
         
-        function buildRoofStructure() {
-            const wallTop = materials.foundationBlock.h + materials.slab.h + materials.brick.h * 9;
-            const mat = materials.beam;
-            const roofHeight = 2;
-            
-            // Ridge beam
-            for (let z = -buildingDepth/2; z < buildingDepth/2; z += 1) {
-                createBlock('beam', 0, wallTop + roofHeight, z, 0);
-            }
-            
-            // Rafters
-            const rafterCount = 8;
-            for (let i = 0; i <= rafterCount; i++) {
-                const z = -buildingDepth/2 + (buildingDepth / rafterCount) * i;
-                
-                // Left rafter
-                const leftBeam = createBlock('beam', -buildingWidth/4, wallTop + roofHeight/2, z, 0);
-                leftBeam.rotation.z = Math.PI / 6;
-                
-                // Right rafter
-                const rightBeam = createBlock('beam', buildingWidth/4, wallTop + roofHeight/2, z, 0);
-                rightBeam.rotation.z = -Math.PI / 6;
-            }
+        function addShelf(num) {
+            // Shelf: fits inside between the sides
+            // 964mm wide (1000 - 2×18) x 482mm deep (500 - 18) x 18mm thick
+            const innerWidth = cabinetWidth - 2 * boardThickness;
+            const innerDepth = cabinetDepth - boardThickness;
+            const y = boardThickness + (cabinetHeight / 3) * num;
+            createPart(innerWidth, boardThickness, innerDepth,
+                      0, y, boardThickness/2, woodColor);
         }
         
-        function buildRoofCovering() {
-            const wallTop = materials.foundationBlock.h + materials.slab.h + materials.brick.h * 9;
-            const mat = materials.roofTile;
-            const roofHeight = 2;
-            const roofPitch = Math.PI / 6;
-            
-            // Left side
-            for (let x = -buildingWidth/2; x < 0; x += mat.w) {
-                for (let z = -buildingDepth/2; z < buildingDepth/2; z += mat.d) {
-                    const distFromCenter = Math.abs(x);
-                    const y = wallTop + roofHeight - distFromCenter * Math.tan(roofPitch);
-                    const tile = createBlock('roofTile', x, y, z, 0);
-                    tile.rotation.x = -roofPitch;
-                }
-            }
-            
-            // Right side
-            for (let x = 0; x < buildingWidth/2; x += mat.w) {
-                for (let z = -buildingDepth/2; z < buildingDepth/2; z += mat.d) {
-                    const distFromCenter = Math.abs(x);
-                    const y = wallTop + roofHeight - distFromCenter * Math.tan(roofPitch);
-                    const tile = createBlock('roofTile', x, y, z, 0);
-                    tile.rotation.x = roofPitch;
-                }
-            }
+        function addBack() {
+            // Back panel: 1000mm wide x 2000mm tall x 6mm plywood
+            // Vertical panel at the back
+            const z = cabinetDepth/2 - plywoodThickness/2;
+            const y = cabinetHeight/2 + boardThickness;
+            createPart(cabinetWidth, cabinetHeight, plywoodThickness,
+                      0, y, z, plywoodColor);
+        }
+        
+        function addDoor(side) {
+            // Door: 490mm wide (1000/2 - 10 gap) x 1964mm tall (2000 - 2×18) x 18mm thick
+            const doorWidth = cabinetWidth/2 - 0.01;
+            const doorHeight = cabinetHeight - 2 * boardThickness;
+            const x = side === 'left' ? -cabinetWidth/4 : cabinetWidth/4;
+            const y = cabinetHeight/2 + boardThickness;
+            const z = -cabinetDepth/2 - boardThickness/2;
+            createPart(doorWidth, doorHeight, boardThickness,
+                      x, y, z, woodColor);
         }
         
         // Animation
         let time = 0;
-        let stageProgress = 0;
+        const stageDuration = 60; // frames per stage
         
         function animate() {
             requestAnimationFrame(animate);
@@ -409,45 +303,39 @@
             if (!paused) {
                 time += 0.016 * speed;
                 
-                // Update current stage
-                if (currentStage < stages.length) {
-                    stageProgress += speed;
-                    
-                    if (stageProgress >= stages[currentStage].duration) {
-                        currentStage++;
-                        stageProgress = 0;
-                        
-                        if (currentStage < stages.length) {
-                            stages[currentStage].build();
-                        }
-                    }
+                // Add next stage when ready
+                if (currentStage < stages.length && 
+                    (currentStage === 0 || parts.length > 0 && parts[parts.length - 1].userData.progress >= 0.8)) {
+                    stages[currentStage].build();
+                    currentStage++;
                     
                     // Update UI
-                    if (currentStage < stages.length) {
-                        document.getElementById('stage-name').textContent = `Stage: ${stages[currentStage].name}`;
-                        const mat = materials[stages[currentStage].material];
-                        document.getElementById('material-details').textContent = 
-                            `${stages[currentStage].material}: ${Math.round(mat.w*1000)}x${Math.round(mat.h*1000)}x${Math.round(mat.d*1000)}mm`;
-                        
-                        const totalProgress = (currentStage * 100 + (stageProgress / stages[currentStage].duration) * 100) / stages.length;
-                        document.getElementById('progress').style.width = totalProgress + '%';
+                    if (currentStage <= stages.length) {
+                        const stageIndex = Math.min(currentStage, stages.length - 1);
+                        document.getElementById('stage-name').textContent = `Stage: ${stages[stageIndex].name}`;
+                        document.getElementById('material-details').textContent = stages[stageIndex].desc;
+                        document.getElementById('materials-used').textContent = `Parts: ${parts.length} / ${totalStages}`;
+                        const progress = (currentStage / totalStages) * 100;
+                        document.getElementById('progress').style.width = progress + '%';
                     }
-                    
-                    document.getElementById('materials-used').textContent = `Materials: ${constructionElements.length}`;
                 }
                 
-                // Animate blocks rising
-                constructionElements.forEach((element, i) => {
-                    if (element.position.y < element.userData.targetY) {
-                        element.position.y += 0.05 * speed;
+                // Animate parts moving to position
+                parts.forEach((part) => {
+                    if (part.userData.progress < 1) {
+                        part.userData.progress += 0.02 * speed;
+                        const t = Math.min(part.userData.progress, 1);
+                        const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+                        
+                        part.position.x = part.position.x + (part.userData.targetPos.x - part.position.x) * eased * 0.1;
+                        part.position.y = part.position.y + (part.userData.targetPos.y - part.position.y) * eased * 0.1;
+                        part.position.z = part.position.z + (part.userData.targetPos.z - part.position.z) * eased * 0.1;
                     }
                 });
-                
-                // Rotate camera slowly
-                camera.position.x = Math.cos(time * 0.1) * 20;
-                camera.position.z = Math.sin(time * 0.1) * 20;
-                camera.lookAt(0, 3, 0);
             }
+            
+            // Update controls
+            controls.update();
             
             renderer.render(scene, camera);
         }
@@ -462,12 +350,11 @@
         }
         
         function resetConstruction() {
-            constructionElements.forEach(el => scene.remove(el));
-            constructionElements.length = 0;
+            parts.forEach(el => scene.remove(el));
+            parts.length = 0;
             currentStage = 0;
-            stageProgress = 0;
             time = 0;
-            stages[0].build();
+            document.getElementById('progress').style.width = '0%';
         }
         
         // Window resize
@@ -477,8 +364,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
         
-        // Start construction
-        stages[0].build();
+        // Start assembly
         animate();
     </script>
 </body>
