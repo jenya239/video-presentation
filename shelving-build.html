@@ -137,24 +137,6 @@
         ground.receiveShadow = true;
         scene.add(ground);
         
-        // Debug: visualize frame structure with thin lines
-        const debugLines = new THREE.Group();
-        frameStructure.forEach(spec => {
-            const points = [
-                new THREE.Vector3(...spec.start),
-                new THREE.Vector3(...spec.end)
-            ];
-            const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-            const lineMaterial = new THREE.LineBasicMaterial({ 
-                color: 0x00ff00, 
-                opacity: 0.3, 
-                transparent: true 
-            });
-            const line = new THREE.Line(lineGeometry, lineMaterial);
-            debugLines.add(line);
-        });
-        scene.add(debugLines);
-        
         // Materials
         const metalColor = 0x808080; // Raw metal
         const paintedColor = 0x2c3e50; // Dark blue-gray
@@ -226,6 +208,24 @@
               start: [shelfWidth/2, shelfHeight/2, -shelfDepth/2], 
               end: [shelfWidth/2, shelfHeight/2, shelfDepth/2] }   // Right middle
         ];
+        
+        // Debug: visualize frame structure with thin lines
+        const debugLines = new THREE.Group();
+        frameStructure.forEach(spec => {
+            const points = [
+                new THREE.Vector3(...spec.start),
+                new THREE.Vector3(...spec.end)
+            ];
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: 0x00ff00, 
+                opacity: 0.3, 
+                transparent: true 
+            });
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            debugLines.add(line);
+        });
+        scene.add(debugLines);
         
         // Stages
         const stages = [
