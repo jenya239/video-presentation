@@ -218,8 +218,8 @@
             <span class="stat-value">9</span>
         </div>
         <div class="stat-row">
-            <span class="stat-label">Real Comets:</span>
-            <span class="stat-value">2</span>
+            <span class="stat-label">Moons:</span>
+            <span class="stat-value">12</span>
         </div>
     </div>
 
@@ -557,59 +557,8 @@
             });
         });
 
-        // Реальные кометы с настоящими орбитальными параметрами
-        const cometsData = [
-            { 
-                name: "Halley's Comet",
-                semiMajor: 270, // ~18 AU масштабированно
-                eccentricity: 0.967,
-                inclination: 162.3,
-                speed: 0.013,
-                angle: Math.PI // Начинаем с афелия (дальней точки)
-            },
-            { 
-                name: "Hale-Bopp",
-                semiMajor: 420, // приближенно
-                eccentricity: 0.95, // Снижаем эксцентриситет чтобы не врезалась
-                inclination: 89.4,
-                speed: 0.004,
-                angle: Math.PI * 0.5
-            }
-        ];
-
+        // Кометы убраны - их наклонённые орбиты создавали визуальную путаницу
         const comets = [];
-        cometsData.forEach((data, i) => {
-            const cometGeometry = new THREE.SphereGeometry(0.12, 12, 12);
-            const cometMaterial = new THREE.MeshBasicMaterial({ 
-                color: 0xccddff,
-                emissive: 0xccddff,
-                emissiveIntensity: 0.7
-            });
-            const comet = new THREE.Mesh(cometGeometry, cometMaterial);
-            
-            const tailGeometry = new THREE.ConeGeometry(0.2, 6, 8);
-            const tailMaterial = new THREE.MeshBasicMaterial({
-                color: 0xaaddff,
-                transparent: true,
-                opacity: 0.2
-            });
-            const tail = new THREE.Mesh(tailGeometry, tailMaterial);
-            tail.rotation.x = Math.PI / 2;
-            tail.position.z = -3;
-            comet.add(tail);
-            
-            scene.add(comet);
-            
-            comets.push({
-                mesh: comet,
-                name: data.name,
-                semiMajor: data.semiMajor,
-                eccentricity: data.eccentricity,
-                inclination: data.inclination,
-                speed: data.speed,
-                angle: data.angle
-            });
-        });
 
         // Камера и навигация
         let cameraState = {
@@ -755,18 +704,6 @@
                 moon.mesh.position.z += z;
             });
             
-            comets.forEach(comet => {
-                comet.angle += comet.speed * 0.001;
-                // Реальная эллиптическая орбита: r = a(1-e²)/(1+e*cos(θ))
-                const r = comet.semiMajor * (1 - comet.eccentricity * comet.eccentricity) / 
-                          (1 + comet.eccentricity * Math.cos(comet.angle));
-                const x = Math.cos(comet.angle) * r;
-                const z = Math.sin(comet.angle) * r;
-                const y = Math.sin(comet.angle) * r * Math.sin(comet.inclination * Math.PI / 180) * 0.4;
-                
-                comet.mesh.position.set(x, y, z);
-                comet.mesh.lookAt(0, 0, 0);
-            });
             
             if (cameraState.mode === 'transition') {
                 cameraState.transitionProgress += 0.015;
