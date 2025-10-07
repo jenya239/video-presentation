@@ -339,22 +339,20 @@
             const x = Math.cos(angle) * distance;
             const z = Math.sin(angle) * distance;
             
-            const enemySize = 0.5 + wave * 0.02; // Slower growth
+            const enemySize = 0.8 + wave * 0.03; // Bigger enemies
             
-            // Use simple plane (2 triangles) instead of box
+            // Use octahedron - more interesting shape, still simple (8 triangles)
             if (!enemyGeometries[wave]) {
-                enemyGeometries[wave] = new THREE.PlaneGeometry(enemySize, enemySize);
+                enemyGeometries[wave] = new THREE.OctahedronGeometry(enemySize * 0.6);
             }
             
             const enemyColor = new THREE.Color().setHSL((wave * 0.1) % 1, 0.8, 0.5);
             const enemyMaterial = new THREE.MeshBasicMaterial({
-                color: enemyColor,
-                side: THREE.DoubleSide
+                color: enemyColor
             });
             
             const enemy = new THREE.Mesh(enemyGeometries[wave], enemyMaterial);
-            enemy.position.set(x, enemySize / 2, z);
-            enemy.rotation.y = angle; // Face center
+            enemy.position.set(x, enemySize * 0.6, z);
             scene.add(enemy);
             
             enemies.push({
@@ -362,7 +360,8 @@
                 hp: 50 + wave * 20,
                 maxHP: 50 + wave * 20,
                 speed: 0.05 + wave * 0.005,
-                damage: 5 + wave * 2
+                damage: 5 + wave * 2,
+                knockback: new THREE.Vector3(0, 0, 0) // For knockback effect
             });
         }
         
@@ -402,8 +401,13 @@
             const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
             const gunWorldPos = currentGun.getWorldPosition(new THREE.Vector3());
             
-            // Set bullet at enemy height level (0.5)
-            bullet.position.set(gunWorldPos.x, 0.5, gunWorldPos.z);
+            // Calculate gun tip position (barrel is 2 units long, pointing towards +z in local space)
+            const gunTipOffset = new THREE.Vector3(0, 0, 2);
+            gunTipOffset.applyQuaternion(gunPlatform.quaternion);
+            const gunTipPos = gunWorldPos.clone().add(gunTipOffset);
+            
+            // Set bullet at gun tip at enemy height level (0.5)
+            bullet.position.set(gunTipPos.x, 0.5, gunTipPos.z);
             
             // Shoot towards mouse position at same height
             const targetPos = mouseWorldPos.clone();
@@ -417,9 +421,15 @@
             
             scene.add(bullet);
             
+            // Gun recoil effect
+            currentGun.position.z -= 0.3;
+            setTimeout(() => {
+                currentGun.position.z += 0.3;
+            }, 100);
+            
             bullets.push({
                 mesh: bullet,
-                velocity: direction.multiplyScalar(1.0), // Faster bullets
+                velocity: direction.multiplyScalar(1.0),
                 damage: towerDamage
             });
         }
@@ -608,8 +618,14 @@
                 direction.y = 0;
                 direction.normalize();
                 
+                // Apply knockback and decay it
+                enemy.mesh.position.add(enemy.knockback);
+                enemy.knockback.multiplyScalar(0.85); // Decay knockback
+                
+                // Normal movement
                 enemy.mesh.position.add(direction.multiplyScalar(enemy.speed));
-                enemy.mesh.rotation.y += 0.05;
+                enemy.mesh.rotation.y += 0.1;
+                enemy.mesh.rotation.x += 0.05;
                 
                 // Check if reached tower
                 if (enemy.mesh.position.distanceTo(tower.position) < 2) {
@@ -636,10 +652,14 @@
                     const enemy = enemies[j];
                     const distance = bullet.mesh.position.distanceTo(enemy.mesh.position);
                     
-                    // Hit detection - simpler
-                    const enemySize = 0.5 + wave * 0.02;
-                    if (distance < enemySize + 0.4) {
+                    // Hit detection - bigger hitbox for bigger enemies
+                    const enemySize = 0.8 + wave * 0.03;
+                    if (distance < enemySize * 0.6 + 0.5) {
                         enemy.hp -= bullet.damage;
+                        
+                        // Apply knockback in bullet direction
+                        const knockbackForce = bullet.velocity.clone().multiplyScalar(0.15);
+                        enemy.knockback.add(knockbackForce);
                         
                         if (enemy.hp <= 0) {
                             score += 10 * wave;
@@ -681,8 +701,14 @@
                         const explosionPos = missile.mesh.position.clone();
                         for (let j = enemies.length - 1; j >= 0; j--) {
                             const e = enemies[j];
-                            if (e.mesh.position.distanceTo(explosionPos) < 5) {
+                            const distToExplosion = e.mesh.position.distanceTo(explosionPos);
+                            if (distToExplosion < 5) {
                                 e.hp -= towerDamage * 3;
+                                
+                                // Knockback from explosion center
+                                const knockbackDir = e.mesh.position.clone().sub(explosionPos).normalize();
+                                e.knockback.add(knockbackDir.multiplyScalar(0.3));
+                                
                                 if (e.hp <= 0) {
                                     score += 10 * wave;
                                     kills++;
